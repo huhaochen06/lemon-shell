@@ -19,69 +19,72 @@ Column {
     rightPadding: CUtils.clamp(padding - Config.border.thickness, 0, padding)
     spacing: Tokens.spacing.large
 
-    SessionButton {
-        id: logout
+    Repeater {
+        id: topButtonsRepeater
 
-        icon: Config.session.icons.logout
-        command: Config.session.commands.logout
+        model: Config.session.buttons.slice(0, Math.min(2, Config.session.buttons.length))
 
-        KeyNavigation.down: shutdown
+        SessionButton {
+            id: topBtn
+            required property var modelData
+            required property int index
 
-        Component.onCompleted: forceActiveFocus()
+            icon: modelData.icon
+            command: modelData.command
 
-        Connections {
-            function onLauncherChanged(): void {
-                if (!root.screenState.launcher)
-                    logout.forceActiveFocus();
+            Component.onCompleted: {
+                if (index === 0)
+                    topBtn.forceActiveFocus();
             }
 
-            target: root.screenState
+            Connections {
+                function onLauncherChanged(): void {
+                    if (index === 0 && !root.screenState.launcher)
+                        topBtn.forceActiveFocus();
+                }
+
+                target: root.screenState
+            }
+
+            KeyNavigation.up: index > 0 ? topButtonsRepeater.itemAt(index - 1) : null
+            KeyNavigation.down: index < topButtonsRepeater.count - 1
+                ? topButtonsRepeater.itemAt(index + 1)
+                : (bottomButtonsRepeater.count > 0 ? bottomButtonsRepeater.itemAt(0) : null)
         }
     }
 
-    SessionButton {
-        id: shutdown
+    AnimatedImage {
+        width: Tokens.sizes.session.button
+        height: Tokens.sizes.session.button
+        sourceSize.width: width * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1)
 
-        icon: Config.session.icons.shutdown
-        command: Config.session.commands.shutdown
-
-        KeyNavigation.up: logout
-        KeyNavigation.down: hibernate
+        playing: visible
+        asynchronous: true
+        speed: Config.general.sessionGifSpeed
+        source: Paths.absolutePath(Config.paths.sessionGif)
+        fillMode: AnimatedImage.PreserveAspectFit
+        visible: Config.paths.sessionGif.trim() !== ""
     }
 
-    Loader {
-        active: Config.paths.sessionGif.trim() !== ""
+    Repeater {
+        id: bottomButtonsRepeater
 
-        sourceComponent: AnimatedImage {
-            width: Tokens.sizes.session.button
-            height: Tokens.sizes.session.button
-            sourceSize.width: width * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1)
+        model: Config.session.buttons.length > 2 ? Config.session.buttons.slice(2) : []
 
-            playing: visible
-            asynchronous: true
-            speed: Config.general.sessionGifSpeed
-            source: Paths.absolutePath(Config.paths.sessionGif)
-            fillMode: AnimatedImage.PreserveAspectFit
+        SessionButton {
+            required property var modelData
+            required property int index
+
+            icon: modelData.icon
+            command: modelData.command
+
+            KeyNavigation.up: index === 0
+                ? (topButtonsRepeater.count > 0 ? topButtonsRepeater.itemAt(topButtonsRepeater.count - 1) : null)
+                : bottomButtonsRepeater.itemAt(index - 1)
+            KeyNavigation.down: index < bottomButtonsRepeater.count - 1
+                ? bottomButtonsRepeater.itemAt(index + 1)
+                : null
         }
-    }
-
-    SessionButton {
-        id: hibernate
-
-        icon: Config.session.icons.hibernate
-        command: Config.session.commands.hibernate
-
-        KeyNavigation.up: shutdown
-        KeyNavigation.down: reboot
-    }
-
-    SessionButton {
-        id: reboot
-
-        icon: Config.session.icons.reboot
-        command: Config.session.commands.reboot
-
-        KeyNavigation.up: hibernate
     }
 
     component SessionButton: IconButton {
@@ -90,8 +93,16 @@ Column {
         required property list<string> command
 
         function exec(): void {
-            if (!SessionManager.exec(command))
-                Quickshell.execDetached(command);
+            if (!SessionManager.exec(command)) {
+                if (command.length > 0) {
+                    let hasShellOp = command.some(arg => arg.includes(" ") || arg === "&&" || arg === "||" || arg === ";" || arg === "|" || arg === ">" || arg === "<");
+                    if (hasShellOp || command.length === 1) {
+                        Quickshell.execDetached(["sh", "-c", command.join(" ")]);
+                    } else {
+                        Quickshell.execDetached(command);
+                    }
+                }
+            }
         }
 
         implicitWidth: Tokens.sizes.session.button

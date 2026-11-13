@@ -5,6 +5,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.components.misc
+import qs.services
+import Caelestia.Config
 
 Scope {
     property alias lock: lock
@@ -13,6 +15,10 @@ Scope {
         id: lock
 
         signal unlock
+
+        onUnlock: Audio.playUnlock()
+
+        onLockedChanged: Visibilities.sessionLocked = locked
 
         LockSurface {
             lock: lock
@@ -45,7 +51,10 @@ Scope {
         // qmllint enable unresolved-type
         name: "lock"
         description: "Lock the current session"
-        onPressed: lock.locked = true
+        onPressed: {
+            lock.locked = true;
+            Audio.playLock();
+        }
     }
 
     // qmllint disable unresolved-type
@@ -59,6 +68,7 @@ Scope {
     IpcHandler {
         function lock(): void {
             lock.locked = true;
+            Audio.playLock();
         }
 
         function unlock(): void {
@@ -71,4 +81,37 @@ Scope {
 
         target: "lock"
     }
+
+    Timer {
+        id: startupLockTimer
+
+        interval: 750
+        onTriggered: {
+            if (GlobalConfig.lock.lockOnStartup) {
+                lock.locked = true;
+            }
+        }
+    }
+
+    Process {
+        id: startupLockProc
+
+        command: [
+            "sh",
+            "-c",
+            "leader=$(loginctl show-session \"$XDG_SESSION_ID\" -p Leader --value 2>/dev/null); if [ -n \"$leader\" ]; then age=$(ps -o etimes= -p \"$leader\" | tr -d ' '); if [ -n \"$age\" ] && [ \"$age\" -lt 30 ]; then exit 0; else exit 1; fi; else age=$(awk '{print int($1)}' /proc/uptime); if [ -n \"$age\" ] && [ \"$age\" -lt 30 ]; then exit 0; else exit 1; fi; fi"
+        ]
+        onExited: code => {
+            if (code === 0 && GlobalConfig.lock.lockOnStartup) {
+                startupLockTimer.start();
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        if (GlobalConfig.lock.lockOnStartup) {
+            startupLockProc.running = true;
+        }
+    }
 }
+
