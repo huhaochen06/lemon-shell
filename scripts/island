@@ -1,0 +1,314 @@
+#!/usr/bin/env python3
+"""Drive the dynamic island from scripts (services/IslandTasks.qml).
+
+  island notify TITLE [SUBTITLE] [-i ICON] [--image PATH] [--app-icon NAME] [--status success|error]
+  island start ID TITLE [SUBTITLE] [--progress P | --spinner] [--text T] [--pid PID] [--ttl S] ...
+  island update ID [TITLE] [--subtitle S] [--progress P] [--text T] ...
+  island progress ID VALUE          VALUE: 0..1, a percentage (45 or 45%), or N/M
+  island end ID [TITLE [SUBTITLE]] [--status success|error] [--quiet-if-focused]
+  island dismiss ID
+  island list
+  island run [--title T] [--icon I] [--quiet-if-focused] [--no-banner] -- COMMAND...
+      Live while COMMAND runs (elapsed time, a stop button, click to go back to the terminal), then a
+      done / failed banner. Exits with COMMAND's status.
+  island pipe ID TITLE [--icon I]
+      Copies stdin to stdout and shows the last percentage seen on it as progress, e.g.
+      rsync -a --info=progress2 src/ dst/ | island pipe backup "Backup"
+
+Colours: primary, secondary, tertiary, error. Icons are Material Symbols names.
+"""
+
+import argparse
+import json
+import os
+import re
+import shlex
+import signal
+import subprocess
+import sys
+import time
+
+QS = ["qs", "-c", "caelestia", "ipc", "call", "island"]
+
+
+def call(*args: str) -> str:
+    try:
+        out = subprocess.run([*QS, *args], capture_output=True, text=True, timeout=5)
+        return out.stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def terminal_window() -> str | None:
+    """Address of the Hyprland window this process runs in: the nearest ancestor that owns one."""
+    try:
+        clients = json.loads(subprocess.run(["hyprctl", "clients", "-j"], capture_output=True, text=True, timeout=2).stdout)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+    by_pid = {c.get("pid"): c.get("address") for c in clients}
+    pid = os.getppid()
+    for _ in range(32):
+        if pid in by_pid:
+            return by_pid[pid]
+        try:
+            with open(f"/proc/{pid}/stat") as f:
+                # ppid is the field after the parenthesised command name (which may contain spaces)
+                pid = int(f.read().rsplit(")", 1)[1].split()[1])
+        except (OSError, ValueError, IndexError):
+            return None
+        if pid <= 1:
+            return None
+    return None
+
+
+def parse_progress(value: str | None):
+    if value is None:
+        return None
+    s = value.strip()
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)", s)
+    if m:
+        total = float(m.group(2))
+        return min(1.0, float(m.group(1)) / total) if total > 0 else 0.0
+    if s.endswith("%"):
+        return max(0.0, min(1.0, float(s[:-1]) / 100))
+    n = float(s)
+    if n < 0:
+        return -1
+    return min(1.0, n / 100 if n > 1 else n)
+
+
+def duration(seconds: float) -> str:
+    s = int(round(seconds))
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {s:02d}s"
+    h, m = divmod(m, 60)
+    return f"{h}h {m:02d}m"
+
+
+def common(p: argparse.ArgumentParser) -> None:
+    p.add_argument("-i", "--icon")
+    p.add_argument("--image", help="image file shown as the artwork")
+    p.add_argument("--app-icon", help="icon theme name or path shown as the artwork")
+    p.add_argument("-c", "--colour", "--color", dest="colour", choices=["primary", "secondary", "tertiary", "error"])
+    p.add_argument("--priority", type=int)
+    p.add_argument("--command", help="run (with sh -c) when clicked")
+    p.add_argument("--focus-terminal", action="store_true", help="clicking focuses this terminal")
+
+
+def payload(a: argparse.Namespace, **extra) -> dict:
+    d = {}
+    for key, attr in [("icon", "icon"), ("image", "image"), ("appIcon", "app_icon"), ("colour", "colour"),
+                      ("priority", "priority"), ("command", "command")]:
+        v = getattr(a, attr, None)
+        if v is not None:
+            d[key] = v
+    if getattr(a, "image", None):
+        d["image"] = os.path.abspath(os.path.expanduser(a.image))
+    if getattr(a, "focus_terminal", False):
+        w = terminal_window()
+        if w:
+            d["window"] = w
+    d.update({k: v for k, v in extra.items() if v is not None})
+    return d
+
+
+def cmd_notify(a):
+    d = payload(a, title=a.title, subtitle=a.subtitle, status=a.status, duration=a.duration,
+                trailingIcon=a.trailing_icon, trailingText=a.trailing_text,
+                progress=parse_progress(a.progress), urgent=a.urgent or None, key=a.key)
+    if a.quiet_if_focused:
+        w = d.get("window") or terminal_window()
+        if w:
+            d["window"] = w
+            d["quietIfFocused"] = True
+    print(call("post", json.dumps(d)))
+
+
+def task_fields(a, title=None, subtitle=None) -> dict:
+    progress = -1 if getattr(a, "spinner", False) else parse_progress(getattr(a, "progress", None))
+    return payload(a, title=title, subtitle=subtitle, progress=progress, text=getattr(a, "text", None),
+                   pid=getattr(a, "pid", None), ttl=getattr(a, "ttl", None))
+
+
+def cmd_start(a):
+    print(call("start", a.id, json.dumps(task_fields(a, a.title, a.subtitle))))
+
+
+def cmd_update(a):
+    print(call("update", a.id, json.dumps(task_fields(a, a.title, a.subtitle))))
+
+
+def cmd_progress(a):
+    p = parse_progress(a.value)
+    print(call("progress", a.id, str(p)))
+
+
+def cmd_end(a):
+    d = payload(a, title=a.title, subtitle=a.subtitle, status=a.status) if (a.title or a.subtitle) else {}
+    if d and a.quiet_if_focused:
+        d["quietIfFocused"] = True  # the task's window, if it was started with --focus-terminal
+    print(call("end", a.id, json.dumps(d)))
+
+
+def cmd_dismiss(a):
+    print(call("dismiss", a.id))
+
+
+def cmd_list(_):
+    print(call("list"))
+
+
+def cmd_run(a):
+    command = a.command[1:] if a.command and a.command[0] == "--" else a.command
+    if not command:
+        sys.exit("island run: no command given")
+    name = a.title or shlex.join(command)
+    if len(name) > 60:
+        name = name[:57] + "…"
+    task_id = f"run-{os.getpid()}"
+    window = terminal_window()
+
+    try:
+        proc = subprocess.Popen(command)
+    except OSError as e:
+        sys.exit(f"island run: {e}")
+
+    # Ctrl-C reaches the command too (same process group); let it decide, then report how it ended
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    start = time.monotonic()
+    d = {
+        "title": name,
+        "subtitle": a.subtitle or "Running",
+        "icon": a.icon or "terminal",
+        "pid": proc.pid,
+        "actions": [{"icon": "stop", "variant": "danger", "command": ["kill", "-INT", str(proc.pid)]}],
+    }
+    if a.colour:
+        d["colour"] = a.colour
+    if window:
+        d["window"] = window
+    call("start", task_id, json.dumps(d))
+
+    code = proc.wait()
+    took = duration(time.monotonic() - start)
+    if a.no_banner:
+        call("dismiss", task_id)
+    else:
+        what = a.title or command[0]
+        if code == 0:
+            end = {"title": f"{what} finished", "subtitle": took, "status": "success"}
+        elif code in (-2, 130):  # Ctrl-C or the stop button
+            end = {"title": f"{what} stopped", "subtitle": took, "icon": "stop_circle"}
+        else:
+            end = {"title": f"{what} failed", "subtitle": f"Exit code {code} · {took}", "status": "error"}
+        end["duration"] = 6
+        if window and a.quiet_if_focused:
+            end["quietIfFocused"] = True
+        call("end", task_id, json.dumps(end))
+    sys.exit(128 - code if code < 0 else code)
+
+
+def cmd_pipe(a):
+    call("start", a.id, json.dumps(payload(a, title=a.title, subtitle=a.subtitle, progress=-1, pid=os.getpid())))
+    pct = re.compile(rb"(\d{1,3}(?:\.\d+)?)%")
+    last_sent, last_value, buf = 0.0, None, b""
+    out = sys.stdout.buffer
+    try:
+        while True:
+            chunk = os.read(sys.stdin.fileno(), 4096)
+            if not chunk:
+                break
+            out.write(chunk)
+            out.flush()
+            buf = (buf + chunk)[-512:]
+            found = pct.findall(buf)
+            if found:
+                value = min(1.0, float(found[-1]) / 100)
+                now = time.monotonic()
+                if value != last_value and now - last_sent > 0.3:
+                    call("progress", a.id, str(value))
+                    last_sent, last_value = now, value
+    except KeyboardInterrupt:
+        pass
+    call("end", a.id, json.dumps({"title": a.title, "subtitle": "Done", "status": "success"}))
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="island", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p = sub.add_parser("notify", help="show a banner")
+    p.add_argument("title")
+    p.add_argument("subtitle", nargs="?")
+    common(p)
+    p.add_argument("-s", "--status", choices=["success", "error"])
+    p.add_argument("-d", "--duration", type=float, help="seconds")
+    p.add_argument("--trailing-icon")
+    p.add_argument("--trailing-text")
+    p.add_argument("--progress")
+    p.add_argument("--urgent", action="store_true")
+    p.add_argument("--key", help="banners with the same key replace each other")
+    p.add_argument("--quiet-if-focused", action="store_true", help="skip it while this terminal is focused")
+    p.set_defaults(func=cmd_notify)
+
+    for name, func, help in [("start", cmd_start, "start a live task"), ("update", cmd_update, "update a live task")]:
+        p = sub.add_parser(name, help=help)
+        p.add_argument("id")
+        p.add_argument("title", nargs="?" if name == "update" else None)
+        p.add_argument("subtitle", nargs="?")
+        common(p)
+        g = p.add_mutually_exclusive_group()
+        g.add_argument("-p", "--progress")
+        g.add_argument("--spinner", action="store_true")
+        p.add_argument("-t", "--text", help="short text for the trailing wing")
+        p.add_argument("--pid", type=int, help="end the task when this process exits")
+        p.add_argument("--ttl", type=float, help="end the task after this many seconds without updates")
+        p.set_defaults(func=func)
+
+    p = sub.add_parser("progress", help="set a task's progress")
+    p.add_argument("id")
+    p.add_argument("value")
+    p.set_defaults(func=cmd_progress)
+
+    p = sub.add_parser("end", help="end a task, optionally with a banner")
+    p.add_argument("id")
+    p.add_argument("title", nargs="?")
+    p.add_argument("subtitle", nargs="?")
+    common(p)
+    p.add_argument("-s", "--status", choices=["success", "error"])
+    p.add_argument("--quiet-if-focused", action="store_true", help="skip the banner while the task's window is focused")
+    p.set_defaults(func=cmd_end)
+
+    p = sub.add_parser("dismiss", help="end a task without a banner")
+    p.add_argument("id")
+    p.set_defaults(func=cmd_dismiss)
+
+    p = sub.add_parser("list", help="the live tasks, as JSON")
+    p.set_defaults(func=cmd_list)
+
+    p = sub.add_parser("run", help="run a command as a live task")
+    p.add_argument("--title")
+    p.add_argument("--subtitle")
+    p.add_argument("-i", "--icon")
+    p.add_argument("-c", "--colour", "--color", dest="colour", choices=["primary", "secondary", "tertiary", "error"])
+    p.add_argument("--quiet-if-focused", action="store_true", help="no banner if the terminal is focused when it ends")
+    p.add_argument("--no-banner", action="store_true")
+    p.add_argument("command", nargs=argparse.REMAINDER)
+    p.set_defaults(func=cmd_run)
+
+    p = sub.add_parser("pipe", help="show progress parsed from stdin")
+    p.add_argument("id")
+    p.add_argument("title")
+    p.add_argument("subtitle", nargs="?")
+    common(p)
+    p.set_defaults(func=cmd_pipe)
+
+    a = ap.parse_args()
+    a.func(a)
+
+
+if __name__ == "__main__":
+    main()
