@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Caelestia
 import Caelestia.Config
+import Caelestia.State
 import Caelestia.I18n
 import qs.components
 import qs.components.effects
@@ -18,13 +19,18 @@ StyledRect {
 
     radius: Tokens.rounding.large
     color: {
+        let baseColor = Colours.palette.m3surface;
         if (root.modelData.type === Toast.Success)
-            return Colours.palette.m3successContainer;
-        if (root.modelData.type === Toast.Warning)
-            return Colours.palette.m3secondary;
-        if (root.modelData.type === Toast.Error)
-            return Colours.palette.m3errorContainer;
-        return Colours.palette.m3surface;
+            baseColor = Colours.palette.m3successContainer;
+        else if (root.modelData.type === Toast.Warning)
+            baseColor = Colours.palette.m3secondary;
+        else if (root.modelData.type === Toast.Error)
+            baseColor = Colours.palette.m3errorContainer;
+
+        if (GlobalConfig.utilities.toasts.transparency && !(RuntimeState.gameMode && GlobalConfig.utilities.gameMode.disableToastTransparency)) {
+            return Qt.alpha(baseColor, Math.max(0.1, GlobalConfig.utilities.toasts.transparencyBase));
+        }
+        return baseColor;
     }
 
     border.width: 1
@@ -45,6 +51,7 @@ StyledRect {
         opacity: parent.opacity
         z: -1
         level: 3
+        visible: !GlobalConfig.utilities.toasts.transparency || (RuntimeState.gameMode && GlobalConfig.utilities.gameMode.disableToastTransparency)
     }
 
     RowLayout {

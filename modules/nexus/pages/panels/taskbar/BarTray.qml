@@ -19,30 +19,49 @@ PageBase {
 
         ToggleRow {
             first: true
-            text: Tr.trCtx("Background", "taskbar tray: draw a background behind the tray")
-            checked: Config.bar.tray.background
-            onToggled: GlobalConfig.bar.tray.background = checked
+            text: qsTr("Background")
+            configNode: root.targetConfig.bar.tray
+            propertyName: "background"
+            checked: root.targetConfig.bar.tray.background
+            onToggled: {
+                root.targetConfig.bar.tray.background = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            // TRANSLATORS: tint system tray icons with the theme accent colour
-            text: Tr.tr("Recolour icons")
-            checked: Config.bar.tray.recolour
-            onToggled: GlobalConfig.bar.tray.recolour = checked
+            text: qsTr("Recolour icons")
+            configNode: root.targetConfig.bar.tray
+            propertyName: "recolour"
+            checked: root.targetConfig.bar.tray.recolour
+            onToggled: {
+                root.targetConfig.bar.tray.recolour = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.trCtx("Compact", "taskbar tray layout")
-            checked: Config.bar.tray.compact
-            onToggled: GlobalConfig.bar.tray.compact = checked
+            text: qsTr("Compact")
+            configNode: root.targetConfig.bar.tray
+            propertyName: "compact"
+            checked: root.targetConfig.bar.tray.compact
+            onToggled: {
+                root.targetConfig.bar.tray.compact = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
             last: true
-            text: Tr.tr("Popout on hover")
-            subtext: Tr.tr("Show the tray menu popout when hovering")
-            checked: Config.bar.popouts.tray
-            onToggled: GlobalConfig.bar.popouts.tray = checked
+            text: qsTr("Popout on hover")
+            subtext: qsTr("Show the tray menu popout when hovering")
+            configNode: root.targetConfig.bar.popouts
+            propertyName: "tray"
+            checked: root.targetConfig.bar.popouts.tray
+            onToggled: {
+                root.targetConfig.bar.popouts.tray = checked;
+                root.targetConfig.save();
+            }
         }
     }
 }

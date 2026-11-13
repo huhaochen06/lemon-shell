@@ -56,6 +56,23 @@ void BlobRect::updatePhysics() {
     }
 
     const float dt = static_cast<float>(m_elapsed.restart()) / 1000.0f;
+
+    // Check for teleport (instant jump > 300px) to prevent spring physics explosion
+    const float dx = static_cast<float>(scenePos.x() - m_prevScenePos.x());
+    const float dy = static_cast<float>(scenePos.y() - m_prevScenePos.y());
+    if (std::sqrt(dx * dx + dy * dy) > 300.0f) {
+        m_prevScenePos = scenePos;
+        m_dm00 = 1.0f;
+        m_dm01 = 0.0f;
+        m_dm11 = 1.0f;
+        m_dmVel00 = m_dmVel01 = m_dmVel11 = 0.0f;
+        m_deformMatrix = QMatrix4x4();
+        m_physicsActive = false;
+        emit rawDeformMatrixChanged();
+        updateCenteredDeformMatrix();
+        return;
+    }
+
     if (dt > 0.1f || dt < 0.001f) {
         m_prevScenePos = scenePos;
         // Still check atRest on skipped frames to avoid getting stuck

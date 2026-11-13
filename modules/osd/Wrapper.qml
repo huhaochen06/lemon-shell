@@ -14,6 +14,8 @@ Item {
     required property bool sidebarOrSessionVisible
 
     property bool hovered
+    // Set while the dynamic island shows changes itself; the OSD then only opens on hover
+    property bool suppressChangePopup
     readonly property Brightness.Monitor monitor: Brightness.getMonitorForScreen(root.screen)
     readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !(screenState.utilities && Config.utilities.enabled)
     property real offsetScale: shouldBeActive ? 0 : 1
@@ -26,6 +28,8 @@ Item {
     property real brightness
 
     function show(): void {
+        if (suppressChangePopup)
+            return;
         screenState.osd = true;
         timer.restart();
     }
@@ -39,7 +43,8 @@ Item {
     }
 
     visible: offsetScale < 1
-    anchors.rightMargin: (-implicitWidth - 5 - sidebarOffset) * offsetScale
+    anchors.leftMargin: Config.bar.position === "right" ? (-implicitWidth - 5 - sidebarOffset) * offsetScale : 0
+    anchors.rightMargin: Config.bar.position !== "right" ? (-implicitWidth - 5 - sidebarOffset) * offsetScale : 0
     implicitWidth: content.implicitWidth
     implicitHeight: content.implicitHeight
     opacity: 1 - offsetScale

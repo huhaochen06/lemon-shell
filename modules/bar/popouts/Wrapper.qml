@@ -15,18 +15,23 @@ Item {
 
     required property ShellScreen screen
     required property real offsetScale
+    required property ScreenState screenState
 
     readonly property alias content: content
     readonly property alias winfo: winfo
     readonly property alias nexus: nexus
 
-    readonly property real nonAnimWidth: children.find(c => c.shouldBeActive)?.implicitWidth ?? content.implicitWidth
-    readonly property real nonAnimHeight: children.find(c => c.shouldBeActive)?.implicitHeight ?? content.implicitHeight
+    readonly property real nonAnimWidth: content.shouldBeActive ? content.implicitWidth : winfo.shouldBeActive ? winfo.implicitWidth : nexus.shouldBeActive ? nexus.implicitWidth : content.implicitWidth
+    readonly property real nonAnimHeight: content.shouldBeActive ? content.implicitHeight : winfo.shouldBeActive ? winfo.implicitHeight : nexus.shouldBeActive ? nexus.implicitHeight : content.implicitHeight
     readonly property Item current: (content.item as Content)?.current ?? null
     readonly property bool isDetached: detachedMode.length > 0
+    readonly property bool sidebarOpen: popoutState.sidebarOpen
+    readonly property bool isDockPopout: currentName === "dockhover" || currentName === "dockcontext" || currentName === "activewindow"
 
     property alias currentName: popoutState.currentName
     property alias hasCurrent: popoutState.hasCurrent
+    property alias currentSection: popoutState.currentSection
+    property alias dockModel: popoutState.dockModel
     property real currentCenter
 
     property string detachedMode
@@ -85,9 +90,22 @@ Item {
     }
 
     PopoutState {
+        Config.screen: root.screen.name
         id: popoutState
 
+        sidebarOpen: root.screenState.sidebar
+        isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+
         onDetachRequested: mode => root.detach(mode)
+    }
+
+    Connections {
+        target: popoutState
+
+        function onHasCurrentChanged() {
+            if (!popoutState.hasCurrent)
+                root.currentSection = "";
+        }
     }
 
     HyprlandFocusGrab {
@@ -123,7 +141,13 @@ Item {
 
         sourceComponent: WindowInfo {
             screen: root.screen
-            client: Hypr.activeToplevel
+            clientAddress: popoutState.selectedClientAddress
+        }
+
+        onShouldBeActiveChanged: {
+            if (!shouldBeActive) {
+                popoutState.selectedClientAddress = "";
+            }
         }
     }
 
@@ -144,7 +168,7 @@ Item {
                 anchors.fill: parent
                 nState.screen: root.screen
                 nState.animatingContainer: nexus.opacity < 1
-                nState.currentPageIdx: ["appearance", "network", "bluetooth", "audio"].indexOf(root.queuedMode)
+                nState.currentPageIdx: ({ "appearance": 0, "network": 3, "bluetooth": 4, "audio": 5 })[root.queuedMode] ?? 0
                 onClose: root.close()
             }
         }

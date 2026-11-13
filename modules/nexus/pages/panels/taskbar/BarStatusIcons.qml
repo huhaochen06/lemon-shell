@@ -1,21 +1,26 @@
 pragma ComponentBehavior: Bound
 
+import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
+import qs.services
 import qs.modules.nexus.common
 
 PageBase {
     id: root
 
     readonly property var builtinIcons: ({
-            lockStatus: Tr.tr("Lock keys"),
-            kbLayout: Tr.tr("Keyboard layout"),
-            audio: Tr.tr("Speakers"),
-            microphone: Tr.tr("Microphone"),
-            network: Tr.tr("Network"),
-            bluetooth: Tr.tr("Bluetooth"),
-            battery: Tr.tr("Battery")
+            lockStatus: qsTr("Lock keys"),
+            kbLayout: qsTr("Keyboard layout"),
+            audio: qsTr("Speakers"),
+            microphone: qsTr("Microphone"),
+            network: qsTr("Network"),
+            bluetooth: qsTr("Bluetooth"),
+            battery: qsTr("Battery"),
+            peripheralBattery: qsTr("Peripheral battery"),
+            notifications: qsTr("Notifications")
         })
 
     title: Tr.tr("Status icons")
@@ -28,9 +33,25 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         // Visible icons
-        SectionHeader {
-            first: true
-            text: Tr.tr("Visible icons")
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.small
+
+            StyledText {
+                text: qsTr("Visible icons")
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.label.medium
+                elide: Text.ElideRight
+            }
+
+            PerMonitorStatusChip {
+                configNode: root.targetConfig.bar
+                propertyName: "statusIcons"
+            }
+
+            Item {
+                Layout.fillWidth: true
+            }
         }
 
         ListEditor {
@@ -48,10 +69,19 @@ PageBase {
 
             z: 1
             first: true
-            values: Config.bar.statusIcons.values
-            onItemMoved: (from, to) => GlobalConfig.bar.statusIcons.move(from, to)
-            onItemRemoved: index => GlobalConfig.bar.statusIcons.remove(index)
-            onItemToggled: (index, checked) => GlobalConfig.bar.statusIcons.at(index).enabled = checked
+            values: root.targetConfig.bar.statusIcons.values
+            onItemMoved: (from, to) => {
+                root.targetConfig.bar.statusIcons.move(from, to);
+                root.targetConfig.save();
+            }
+            onItemRemoved: index => {
+                root.targetConfig.bar.statusIcons.remove(index);
+                root.targetConfig.save();
+            }
+            onItemToggled: (index, checked) => {
+                root.targetConfig.bar.statusIcons.at(index).enabled = checked;
+                root.targetConfig.save();
+            }
         }
 
         DialogSelectButton {
@@ -75,10 +105,11 @@ PageBase {
                 if (!selectedItem) // Should never happen but just in case
                     return;
 
-                GlobalConfig.bar.statusIcons.insert({
+                root.targetConfig.bar.statusIcons.insert({
                     id: selectedItem,
                     enabled: true
                 });
+                root.targetConfig.save();
             }
         }
 
@@ -90,10 +121,15 @@ PageBase {
         ToggleRow {
             first: true
             last: true
-            text: Tr.tr("Popout on hover")
-            subtext: Tr.tr("Show a details popout when hovering the status icons")
-            checked: Config.bar.popouts.statusIcons
-            onToggled: GlobalConfig.bar.popouts.statusIcons = checked
+            text: qsTr("Popout on hover")
+            subtext: qsTr("Show a details popout when hovering the status icons")
+            configNode: root.targetConfig.bar.popouts
+            propertyName: "statusIcons"
+            checked: root.targetConfig.bar.popouts.statusIcons
+            onToggled: {
+                root.targetConfig.bar.popouts.statusIcons = checked;
+                root.targetConfig.save();
+            }
         }
     }
 }

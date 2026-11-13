@@ -14,6 +14,9 @@ Item {
     property bool flag
 
     function shouldShowToast(toast: Toast): bool {
+        // The keyboard layout toast comes from the C++ plugin; the dynamic island shows it instead
+        if (toast.icon === "keyboard" && IslandState.covers("keyboardLayout"))
+            return false;
         if (!Notifs.hasFullscreen())
             return true;
         if (GlobalConfig.utilities.toasts.fullscreen === "all")

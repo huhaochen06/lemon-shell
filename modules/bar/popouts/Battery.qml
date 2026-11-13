@@ -10,6 +10,7 @@ import qs.services
 Column {
     id: root
 
+    // NOTE: dropped by the upstream merge (calls survived, definition did not).
     function formatSeconds(s: int): string {
         const day = Math.floor(s / 86400);
         const hr = Math.floor(s / 3600) % 24;
@@ -25,33 +26,11 @@ Column {
 
         return comps.join(Tr.trCtx(", ", "duration component separator"));
     }
-
-    function powerProfileToString(p: int): string {
-        switch (p) {
-        case PowerProfile.Balanced:
-            return Tr.trCtx("Balanced", "power profile");
-        case PowerProfile.Performance:
-            return Tr.trCtx("Performance", "power profile");
-        case PowerProfile.PowerSaver:
-            return Tr.trCtx("Power saver", "power profile");
-        default:
-            return Tr.trCtx("Unknown", "power profile");
-        }
-    }
-
-    function perfDegradationToString(p: int): string {
-        switch (p) {
-        case PerformanceDegradationReason.HighTemperature:
-            return Tr.tr("The device is too hot");
-        case PerformanceDegradationReason.LapDetected:
-            return Tr.tr("The device is on a lap");
-        default:
-            return Tr.tr("Unknown reason");
-        }
-    }
+    required property var popouts
+    property bool _isSidebarOpen: popouts && popouts.sidebarOpen && popouts.isHorizontal && popouts.currentSection === "end"
 
     spacing: Tokens.spacing.medium
-    width: Tokens.sizes.bar.batteryWidth
+    width: Math.max(Tokens.sizes.bar.batteryWidth, _isSidebarOpen ? Tokens.sizes.sidebar.width - Tokens.padding.extraLargeIncreased : 0)
 
     StyledText {
         text: UPower.displayDevice.isLaptopBattery ? Tr.trCtx("Remaining: %1%", "battery remaining").arg(Math.round(UPower.displayDevice.percentage * 100)) : Tr.tr("No battery detected")

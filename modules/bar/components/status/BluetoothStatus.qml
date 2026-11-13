@@ -13,6 +13,8 @@ Item {
 
     required property color colour
 
+    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+
     implicitWidth: layout.implicitWidth
     implicitHeight: layout.implicitHeight
 
@@ -22,10 +24,20 @@ Item {
         }
     }
 
-    ColumnLayout {
+    Behavior on implicitWidth {
+        Anim {
+            type: Anim.DefaultEffects
+        }
+    }
+
+    GridLayout {
         id: layout
 
-        spacing: Tokens.spacing.medium / 2
+        columns: root.isHorizontal ? -1 : 1
+        rows: root.isHorizontal ? 1 : -1
+        flow: root.isHorizontal ? GridLayout.LeftToRight : GridLayout.TopToBottom
+        columnSpacing: Tokens.spacing.medium / 2
+        rowSpacing: Tokens.spacing.medium / 2
 
         // Bluetooth icon
         MaterialIcon {

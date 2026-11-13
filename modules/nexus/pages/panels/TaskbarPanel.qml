@@ -3,12 +3,36 @@ pragma ComponentBehavior: Bound
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components.controls
 import qs.modules.nexus.common
 
 PageBase {
     id: root
 
-    title: Tr.tr("Taskbar")
+    readonly property list<MenuItem> positionItems: [
+        MenuItem {
+            property string value: "top"
+
+            text: qsTr("Top")
+        },
+        MenuItem {
+            property string value: "bottom"
+
+            text: qsTr("Bottom")
+        },
+        MenuItem {
+            property string value: "left"
+
+            text: qsTr("Left")
+        },
+        MenuItem {
+            property string value: "right"
+
+            text: qsTr("Right")
+        }
+    ]
+
+    title: qsTr("Taskbar")
     isSubPage: true
 
     ColumnLayout {
@@ -25,28 +49,63 @@ PageBase {
 
         ToggleRow {
             first: true
-            text: Tr.tr("Persistent")
-            subtext: Tr.tr("Keep the bar visible at all times")
-            checked: Config.bar.persistent
-            onToggled: GlobalConfig.bar.persistent = checked
+            text: qsTr("Persistent")
+            subtext: qsTr("Keep the bar visible at all times")
+            configNode: root.targetConfig.bar
+            propertyName: "persistent"
+            checked: root.targetConfig.bar.persistent
+            onToggled: {
+                root.targetConfig.bar.persistent = checked;
+                root.targetConfig.save();
+            }
+        }
+
+        SelectRow {
+            Layout.fillWidth: true
+            label: qsTr("Position")
+            subtext: qsTr("Screen edge to place the bar on")
+            configNode: root.targetConfig.bar
+            propertyName: "position"
+            active: {
+                for (let i = 0; i < positionItems.length; i++) {
+                    if (positionItems[i].value === root.targetConfig.bar.position)
+                        return positionItems[i];
+                }
+                return positionItems[0];
+            }
+            menuItems: positionItems
+            onSelected: item => {
+                root.targetConfig.bar.position = item.value;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.tr("Show on hover")
-            subtext: Tr.tr("Reveal the bar when the cursor reaches the screen edge")
-            checked: Config.bar.showOnHover
-            onToggled: GlobalConfig.bar.showOnHover = checked
+            text: qsTr("Show on hover")
+            subtext: qsTr("Reveal the bar when the cursor reaches the screen edge")
+            configNode: root.targetConfig.bar
+            propertyName: "showOnHover"
+            checked: root.targetConfig.bar.showOnHover
+            onToggled: {
+                root.targetConfig.bar.showOnHover = checked;
+                root.targetConfig.save();
+            }
         }
 
         StepperRow {
             last: true
-            label: Tr.tr("Drag threshold")
-            subtext: Tr.tr("Pixels dragged before the bar reveals")
-            value: Config.bar.dragThreshold
+            label: qsTr("Drag threshold")
+            subtext: qsTr("Pixels dragged before the bar reveals")
+            configNode: root.targetConfig.bar
+            propertyName: "dragThreshold"
+            value: root.targetConfig.bar.dragThreshold
             from: 0
             to: 200
             stepSize: 5
-            onMoved: v => GlobalConfig.bar.dragThreshold = v
+            onMoved: v => {
+                root.targetConfig.bar.dragThreshold = v;
+                root.targetConfig.save();
+            }
         }
 
         // Components
@@ -56,39 +115,53 @@ PageBase {
 
         NavRow {
             first: true
-            icon: "workspaces"
-            text: Tr.tr("Workspaces")
-            subtext: Tr.tr("Indicators, window icons")
+            icon: "view_agenda"
+            text: qsTr("Taskbar components")
+            subtext: qsTr("Add, remove or reorder components")
             onClicked: root.nState.openSubPage(6)
         }
 
         NavRow {
-            icon: "web_asset"
-            text: Tr.tr("Active window")
-            subtext: Tr.tr("Title display, popout")
+            icon: "workspaces"
+            text: qsTr("Workspaces")
+            subtext: qsTr("Indicators, window icons")
             onClicked: root.nState.openSubPage(7)
         }
 
         NavRow {
-            icon: "widgets"
-            text: Tr.tr("Tray")
-            subtext: Tr.tr("System tray icons")
+            icon: "web_asset"
+            text: qsTr("Active window")
+            subtext: qsTr("Title display, popout")
             onClicked: root.nState.openSubPage(8)
         }
 
         NavRow {
-            icon: "signal_cellular_alt"
-            text: Tr.tr("Status icons")
-            subtext: Tr.tr("Visible indicators")
+            icon: "dock"
+            text: qsTr("Dock")
+            subtext: qsTr("Positioning, recoloring")
+            onClicked: root.nState.openSubPage(12)
+        }
+
+        NavRow {
+            icon: "widgets"
+            text: qsTr("Tray")
+            subtext: qsTr("System tray icons")
             onClicked: root.nState.openSubPage(9)
+        }
+
+        NavRow {
+            icon: "signal_cellular_alt"
+            text: qsTr("Status icons")
+            subtext: qsTr("Visible indicators")
+            onClicked: root.nState.openSubPage(10)
         }
 
         NavRow {
             last: true
             icon: "schedule"
-            text: Tr.tr("Clock")
-            subtext: Tr.tr("Date, icon, background")
-            onClicked: root.nState.openSubPage(10)
+            text: qsTr("Clock")
+            subtext: qsTr("Date, icon, background")
+            onClicked: root.nState.openSubPage(11)
         }
 
         // Scroll actions

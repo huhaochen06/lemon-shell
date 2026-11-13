@@ -10,13 +10,15 @@ import qs.components
 import qs.components.controls
 import qs.services
 
-Item {
+ColumnLayout {
     id: root
 
     required property PopoutState popouts
 
-    implicitWidth: Tokens.sizes.bar.audioWidth
-    implicitHeight: layout.implicitHeight + Tokens.padding.medium * 2
+    property bool _isSidebarOpen: popouts.sidebarOpen && popouts.isHorizontal && popouts.currentSection === "end"
+
+    implicitWidth: Math.max(300, _isSidebarOpen ? Tokens.sizes.sidebar.width - Tokens.padding.extraLargeIncreased : 0)
+    spacing: Tokens.spacing.medium
 
     ButtonGroup {
         id: sinks
@@ -26,92 +28,127 @@ Item {
         id: sources
     }
 
-    ColumnLayout {
-        id: layout
+    StyledText {
+        Layout.topMargin: Tokens.padding.medium
+        Layout.leftMargin: Tokens.padding.small
+        text: qsTr("Audio")
+        font.weight: 500
+    }
 
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: Tokens.spacing.medium
+    StyledRect {
+        Layout.fillWidth: true
+        implicitWidth: outputLayout.implicitWidth + Tokens.padding.medium * 2
+        implicitHeight: outputLayout.implicitHeight + Tokens.padding.medium * 2
+        radius: Tokens.rounding.medium
+        color: Colours.tPalette.m3surfaceContainer
+        clip: true
 
-        StyledText {
-            text: Tr.trCtx("Output device", "audio output device")
-            font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
-        }
+        ColumnLayout {
+            id: outputLayout
 
-        Repeater {
-            model: Audio.sinks
+            width: parent.width - Tokens.padding.medium * 2
+            x: Tokens.padding.medium
+            y: Tokens.padding.medium
+            spacing: Tokens.spacing.medium
 
-            StyledRadioButton {
-                id: control
-
-                required property PwNode modelData
-
-                Layout.fillWidth: true
-                ButtonGroup.group: sinks
-                checked: Audio.sink?.id === modelData.id
-                onClicked: Audio.setAudioSink(modelData)
-                text: modelData.description
-            }
-        }
-
-        StyledText {
-            Layout.topMargin: Tokens.spacing.medium
-            text: Tr.trCtx("Input device", "audio input device")
-            font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
-        }
-
-        Repeater {
-            model: Audio.sources
-
-            StyledRadioButton {
-                required property PwNode modelData
-
-                Layout.fillWidth: true
-                ButtonGroup.group: sources
-                checked: Audio.source?.id === modelData.id
-                onClicked: Audio.setAudioSource(modelData)
-                text: modelData.description
-            }
-        }
-
-        StyledText {
-            Layout.topMargin: Tokens.spacing.medium
-            text: Audio.muted ? Tr.tr("Volume (muted)") : Tr.tr("Volume (%1%)").arg(Math.round(Audio.volume * 100))
-            font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
-        }
-
-        CustomMouseArea {
-            Layout.fillWidth: true
-            implicitHeight: Tokens.padding.medium * 3
-
-            onWheel: event => {
-                if (event.angleDelta.y > 0)
-                    Audio.incrementVolume();
-                else if (event.angleDelta.y < 0)
-                    Audio.decrementVolume();
+            StyledText {
+                text: qsTr("Output device")
+                font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
             }
 
-            StyledSlider {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                implicitHeight: parent.implicitHeight
+            Repeater {
+                model: Audio.sinks
 
-                value: Audio.volume
-                onInteraction: value => Audio.setVolume(value)
+                StyledRadioButton {
+                    id: outputControl
+
+                    required property PwNode modelData
+
+                    Layout.fillWidth: true
+                    ButtonGroup.group: sinks
+                    checked: Audio.sink?.id === modelData.id
+                    onClicked: Audio.setAudioSink(modelData)
+                    text: modelData.description
+                }
             }
         }
+    }
 
-        IconTextButton {
-            Layout.fillWidth: true
-            Layout.topMargin: Tokens.spacing.medium
-            inactiveColour: Colours.palette.m3primaryContainer
-            inactiveOnColour: Colours.palette.m3onPrimaryContainer
-            verticalPadding: Tokens.padding.extraSmall
-            text: Tr.tr("Open settings")
-            icon: "settings"
+    StyledRect {
+        Layout.fillWidth: true
+        implicitWidth: inputLayout.implicitWidth + Tokens.padding.medium * 2
+        implicitHeight: inputLayout.implicitHeight + Tokens.padding.medium * 2
+        radius: Tokens.rounding.medium
+        color: Colours.tPalette.m3surfaceContainer
+        clip: true
 
-            onClicked: root.popouts.detachRequested("audio")
+        ColumnLayout {
+            id: inputLayout
+
+            width: parent.width - Tokens.padding.medium * 2
+            x: Tokens.padding.medium
+            y: Tokens.padding.medium
+            spacing: Tokens.spacing.medium
+
+            StyledText {
+                text: qsTr("Input device")
+                font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
+            }
+
+            Repeater {
+                model: Audio.sources
+
+                StyledRadioButton {
+                    id: inputControl
+
+                    required property PwNode modelData
+
+                    Layout.fillWidth: true
+                    ButtonGroup.group: sources
+                    checked: Audio.source?.id === modelData.id
+                    onClicked: Audio.setAudioSource(modelData)
+                    text: modelData.description
+                }
+            }
         }
+    }
+
+    StyledText {
+        Layout.topMargin: Tokens.spacing.medium
+        text: Audio.muted ? qsTr("Volume (Muted)") : qsTr("Volume (%1%)").arg(Math.round(Audio.volume * 100))
+        font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
+    }
+
+    CustomMouseArea {
+        Layout.fillWidth: true
+        implicitHeight: Tokens.padding.medium * 3
+
+        onWheel: event => {
+            if (event.angleDelta.y > 0)
+                Audio.incrementVolume();
+            else if (event.angleDelta.y < 0)
+                Audio.decrementVolume();
+        }
+
+        StyledSlider {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            implicitHeight: parent.implicitHeight
+
+            value: Audio.volume
+            onInteraction: v => Audio.setVolume(v)
+            onReleased: v => Audio.playEffectTick()
+        }
+    }
+
+    IconTextButton {
+        Layout.fillWidth: true
+        inactiveColour: Colours.palette.m3primaryContainer
+        inactiveOnColour: Colours.palette.m3onPrimaryContainer
+        verticalPadding: Tokens.padding.small
+        text: qsTr("Open settings")
+        icon: "settings"
+
+        onClicked: root.popouts.detachRequested("audio")
     }
 }

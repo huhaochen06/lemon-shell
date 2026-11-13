@@ -21,17 +21,25 @@ Item {
         property bool recordingListExpanded: false
         property string recordingConfirmDelete
         property string recordingMode
+        
+        property bool quickShareListExpanded: false
+        property bool quickShareDeviceSelectorOpen: false
+        property bool quickShareFileDialogOpen: false
+        
+        property string quickShareConfirmDeletePath
+        property int quickShareConfirmDeleteIndex: -1
 
         reloadableId: "utilities"
     }
-    readonly property bool shouldBeActive: screenState.sidebar || (screenState.utilities && Config.utilities.enabled && !(screenState.session && Config.session.enabled))
+    readonly property bool shouldBeActive: (screenState.utilities || props.quickShareDeviceSelectorOpen || props.quickShareFileDialogOpen) && Config.utilities.enabled && !(screenState.session && Config.session.enabled)
     readonly property real totalPadding: content.anchors.margins + CUtils.clamp(content.anchors.margins - Config.border.thickness, 0, content.anchors.margins)
     readonly property real nonAnimHeight: ((content.item as Content)?.nonAnimHeight ?? 0) + totalPadding
     property real offsetScale: shouldBeActive ? 0 : 1
     property real sidebarLerp
 
     visible: offsetScale < 1
-    anchors.bottomMargin: (-implicitHeight - 5) * offsetScale
+    anchors.bottomMargin: Config.bar.position === "bottom" ? 0 : (-implicitHeight - 5) * offsetScale
+    anchors.topMargin: Config.bar.position === "bottom" ? (-implicitHeight - 5) * offsetScale : 0
     implicitHeight: content.implicitHeight + totalPadding
     implicitWidth: sidebar.width * (1 - sidebar.offsetScale) * horizontalStretch * sidebarLerp + Tokens.sizes.utilities.width * (1 - sidebarLerp)
     opacity: 1 - offsetScale

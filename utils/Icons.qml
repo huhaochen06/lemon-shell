@@ -189,6 +189,8 @@ Singleton {
     }
 
     function getNotifIcon(summary: string, urgency: int): string {
+        if (summary.toLowerCase().includes("quickshare"))
+            return "near_me";
         const fallback = urgency === NotificationUrgency.Critical ? "release_alert" : "chat";
         return matchIcon(summary.toLowerCase(), notifIconRules, fallback);
     }
@@ -205,6 +207,49 @@ Singleton {
 
     function getMicVolumeIcon(volume: real, isMuted: bool): string {
         return !isMuted && volume > 0 ? "mic" : "mic_off";
+    }
+
+    function getSpecialWsIcon(name: string): string {
+        name = name.toLowerCase().slice("special:".length);
+
+        for (const iconConfig of GlobalConfig.bar.workspaces.specialWorkspaceIcons.values)
+            if (matchIconRule(name, iconConfig))
+                return iconConfig.icon;
+
+        switch (name) {
+        case "special":
+            return "star";
+        case "communication":
+            return "forum";
+        case "music":
+            return "music_cast";
+        case "todo":
+            return "checklist";
+        case "sysmon":
+            return "monitor_heart";
+        default:
+            return name[0].toUpperCase();
+        }
+    }
+
+    function getSpecialWsMaterialIcon(name: string): string {
+        name = name.toLowerCase().slice("special:".length);
+
+        for (const iconConfig of GlobalConfig.bar.workspaces.specialWorkspaceIcons.values)
+            if (matchIconRule(name, iconConfig))
+                return iconConfig.icon;
+
+        if (name === "special")
+            return "star";
+        if (name === "communication")
+            return "chat_bubble";
+        if (name === "music")
+            return "music_note_2";
+        if (name === "todo")
+            return "checklist";
+        if (name === "sysmon")
+            return "list_alt";
+        return name[0].toUpperCase();
     }
 
     function getTrayIcon(id: string, icon: string): string {

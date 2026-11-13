@@ -5,13 +5,43 @@ import qs.components
 import qs.services
 
 ColumnLayout {
-    spacing: Tokens.spacing.small
+    required property PopoutState popouts
+
+    property bool _isSidebarOpen: popouts.sidebarOpen && popouts.isHorizontal && popouts.currentSection === "end"
+
+    implicitWidth: Math.max(300, _isSidebarOpen ? Tokens.sizes.sidebar.width - Tokens.padding.extraLargeIncreased : 0)
+    spacing: Tokens.spacing.medium
 
     StyledText {
-        text: Hypr.capsLock ? Tr.tr("Caps lock enabled") : Tr.tr("Caps lock disabled")
+        Layout.topMargin: Tokens.padding.medium
+        Layout.leftMargin: Tokens.padding.small
+        text: qsTr("Keyboard Locks")
+        font.weight: 500
     }
 
-    StyledText {
-        text: Hypr.numLock ? Tr.tr("Num lock enabled") : Tr.tr("Num lock disabled")
+    StyledRect {
+        Layout.fillWidth: true
+        implicitWidth: cardLayout.implicitWidth + Tokens.padding.medium * 2
+        implicitHeight: cardLayout.implicitHeight + Tokens.padding.medium * 2
+        radius: Tokens.rounding.medium
+        color: Colours.tPalette.m3surfaceContainer
+        clip: true
+
+        ColumnLayout {
+            id: cardLayout
+
+            width: parent.width - Tokens.padding.medium * 2
+            x: Tokens.padding.medium
+            y: Tokens.padding.medium
+            spacing: Tokens.spacing.small
+
+            StyledText {
+                text: qsTr("Capslock: %1").arg(Hypr.capsLock ? "Enabled" : "Disabled")
+            }
+
+            StyledText {
+                text: qsTr("Numlock: %1").arg(Hypr.numLock ? "Enabled" : "Disabled")
+            }
+        }
     }
 }

@@ -15,37 +15,48 @@ Item {
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
 
-    readonly property bool disabled: Strings.testRegexList(Config.bar.excludedScreens, screen.name)
+    Config.screen: screen.name
 
-    readonly property int clampedWidth: Math.max(Config.border.minThickness, implicitWidth)
+    readonly property bool disabled: Strings.testRegexList(Config.bar.excludedScreens, screen.name)
+    readonly property string position: Config.bar.position
+
+    // Padding only on the screen-edge side; the compositor gap (gaps_out) provides the inner side
     readonly property int padding: Math.max(Tokens.padding.small, Config.border.thickness)
-    readonly property int contentWidth: Tokens.sizes.bar.innerWidth + padding * 2
+    readonly property int contentWidth: Tokens.sizes.bar.innerWidth + padding
     readonly property int exclusiveZone: !disabled && (Config.bar.persistent || screenState.bar) ? contentWidth : Config.border.thickness
     readonly property bool shouldBeVisible: !fullscreen && !disabled && (Config.bar.persistent || screenState.bar || isHovered)
     property bool isHovered
+
+    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+    readonly property int clampedThickness: Math.max(Config.border.minThickness, isHorizontal ? implicitHeight : implicitWidth)
+    readonly property int clampedWidth: isHorizontal ? root.width : clampedThickness
+    readonly property int clampedHeight: isHorizontal ? clampedThickness : root.height
 
     function closeTray(): void {
         (content.item as Bar)?.closeTray();
     }
 
-    function checkPopout(y: real): void {
-        (content.item as Bar)?.checkPopout(y);
+    function checkPopout(pos: real): void {
+        (content.item as Bar)?.checkPopout(pos);
     }
 
-    function handleWheel(y: real, angleDelta: point): void {
-        (content.item as Bar)?.handleWheel(y, angleDelta);
+    function handleWheel(pos: real, angleDelta: point): void {
+        (content.item as Bar)?.handleWheel(pos, angleDelta);
     }
 
     clip: true
-    visible: width > Config.border.thickness
-    implicitWidth: fullscreen ? 0 : Config.border.thickness
+    visible: isHorizontal ? height > Config.border.thickness : width > Config.border.thickness
+    implicitWidth: isHorizontal ? 0 : (fullscreen ? 0 : Config.border.thickness)
+    implicitHeight: isHorizontal ? (fullscreen ? 0 : Config.border.thickness) : 0
 
     states: State {
         name: "visible"
         when: root.shouldBeVisible
 
         PropertyChanges {
-            root.implicitWidth: root.contentWidth
+            target: root
+            implicitWidth: root.isHorizontal ? 0 : root.contentWidth
+            implicitHeight: root.isHorizontal ? root.contentWidth : 0
         }
     }
 
@@ -56,7 +67,8 @@ Item {
 
             Anim {
                 target: root
-                property: "implicitWidth"
+                property: root.isHorizontal ? "implicitHeight" : "implicitWidth"
+                type: Anim.DefaultSpatial
             }
         },
         Transition {
@@ -65,27 +77,98 @@ Item {
 
             Anim {
                 target: root
-                property: "implicitWidth"
+                property: root.isHorizontal ? "implicitHeight" : "implicitWidth"
                 type: Anim.Emphasized
             }
         }
     ]
 
-    Loader {
-        id: content
+    Component {
+        id: horizontalBar
 
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-
-        active: root.shouldBeVisible
-
-        sourceComponent: Bar {
-            width: root.contentWidth
+        Bar {
+            anchors.fill: parent
             screen: root.screen
             screenState: root.screenState
             popouts: root.popouts
             fullscreen: root.fullscreen
         }
+    }
+
+    Component {
+        id: verticalBar
+
+        Bar {
+            anchors.fill: parent
+            screen: root.screen
+            screenState: root.screenState
+            popouts: root.popouts // qmllint disable incompatible-type
+            fullscreen: root.fullscreen
+        }
+    }
+
+    Loader {
+        id: content
+
+        active: root.shouldBeVisible || root.visible
+        sourceComponent: root.isHorizontal ? horizontalBar : verticalBar
+
+        width: root.isHorizontal ? root.width : Tokens.sizes.bar.innerWidth
+        height: root.isHorizontal ? Tokens.sizes.bar.innerWidth : root.height
+
+        states: [
+            State {
+                name: "left"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "left"
+
+                AnchorChanges {
+                    target: content
+                    anchors.left: undefined
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: undefined
+                }
+            },
+            State {
+                name: "right"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "right"
+
+                AnchorChanges {
+                    target: content
+                    anchors.left: parent.left
+                    anchors.right: undefined
+                    anchors.top: parent.top
+                    anchors.bottom: undefined
+                }
+            },
+            State {
+                name: "top"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "top"
+
+                AnchorChanges {
+                    target: content
+                    anchors.left: parent.left
+                    anchors.right: undefined
+                    anchors.top: undefined
+                    anchors.bottom: parent.bottom
+                }
+            },
+            State {
+                name: "bottom"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "bottom"
+
+                AnchorChanges {
+                    target: content
+                    anchors.left: parent.left
+                    anchors.right: undefined
+                    anchors.top: parent.top
+                    anchors.bottom: undefined
+                }
+            }
+        ]
     }
 }

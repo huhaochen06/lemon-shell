@@ -19,6 +19,8 @@ ColumnLayout {
 
     readonly property bool shouldBeVisible: root.popouts.currentName === "wirelesspassword"
 
+    property bool _isSidebarOpen: popouts.sidebarOpen && popouts.isHorizontal && popouts.currentSection === "end"
+
     function checkConnectionStatus(): void {
         if (!root.shouldBeVisible || !connectButton.connecting) {
             return;
@@ -71,7 +73,7 @@ ColumnLayout {
     }
 
     spacing: Tokens.spacing.medium
-    implicitWidth: 400
+    implicitWidth: Math.max(400, _isSidebarOpen ? Tokens.sizes.sidebar.width - Tokens.padding.extraLargeIncreased : 0)
     implicitHeight: content.implicitHeight + Tokens.padding.extraLargeIncreased
     visible: shouldBeVisible || isClosing
     enabled: shouldBeVisible && !isClosing

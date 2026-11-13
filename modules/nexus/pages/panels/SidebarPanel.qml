@@ -2,8 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
+import qs.components.controls
 import qs.modules.nexus.common
 
 PageBase {
@@ -16,7 +19,7 @@ PageBase {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         width: root.cappedWidth
-        spacing: Tokens.spacing.extraSmall / 2
+        spacing: Tokens.spacing.large
 
         SectionHeader {
             first: true
@@ -25,9 +28,14 @@ PageBase {
 
         ToggleRow {
             first: true
-            text: Tr.trCtx("Enabled", "toggle label")
-            checked: Config.sidebar.enabled
-            onToggled: GlobalConfig.sidebar.enabled = checked
+            text: qsTr("Enabled")
+            configNode: root.targetConfig.sidebar
+            propertyName: "enabled"
+            checked: root.targetConfig.sidebar.enabled
+            onToggled: {
+                root.targetConfig.sidebar.enabled = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
@@ -38,14 +46,21 @@ PageBase {
         }
 
         StepperRow {
+            Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
+            Layout.fillWidth: true
             last: true
-            label: Tr.tr("Drag threshold")
-            subtext: Tr.tr("Pixels dragged before the sidebar opens")
-            value: Config.sidebar.dragThreshold
+            label: qsTr("Drag threshold")
+            subtext: qsTr("Pixels dragged before the sidebar opens")
+            configNode: root.targetConfig.sidebar
+            propertyName: "dragThreshold"
+            value: root.targetConfig.sidebar.dragThreshold
             from: 0
             to: 200
             stepSize: 5
-            onMoved: v => GlobalConfig.sidebar.dragThreshold = v
+            onMoved: v => {
+                root.targetConfig.sidebar.dragThreshold = v;
+                root.targetConfig.save();
+            }
         }
     }
 }

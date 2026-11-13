@@ -34,6 +34,7 @@ class BarWorkspaces : public settings::ObjectNode {
 
     CONFIG_PROPERTY(int, shown, 5)
     CONFIG_PROPERTY(bool, activeIndicator, true)
+    CONFIG_PROPERTY(bool, useIcon, true)
     CONFIG_PROPERTY(bool, occupiedBg, false)
     CONFIG_PROPERTY(bool, showUnoccupied, true)
     CONFIG_PROPERTY(bool, perMonitor, true)
@@ -65,6 +66,7 @@ class BarWorkspaces : public settings::ObjectNode {
         DEFAULT_ARG({
             ICON_RULE_REGEX("steam(_app_(default|[0-9]+))?", "sports_esports"),
         }))
+    CONFIG_GLOBAL_PROPERTY(QVariantList, wsIcons, {})
 };
 
 class BarActiveWindow : public settings::ObjectNode {
@@ -103,18 +105,52 @@ class BarClock : public settings::ObjectNode {
     CONFIG_PROPERTY(bool, showSeconds, false)
 };
 
+class BarDock : public settings::ObjectNode {
+    CONFIG_NODE(BarDock, settings::ObjectNode)
+
+    CONFIG_PROPERTY(bool, monitorCenter, true)
+    CONFIG_PROPERTY(bool, recolourIcons, false)
+};
+
+// Bar entries split into three anchored sections. `start` hugs the top/left edge,
+// `center` sits at the monitor centre and `end` hugs the bottom/right edge.
+// The legacy flat `bar.entries` array is not migrated; it is rejected by the
+// schema sync and the defaults are used instead.
+class BarSections : public settings::ObjectNode {
+    CONFIG_NODE(BarSections, settings::ObjectNode)
+
+    CONFIG_LIST(EntryList, start,
+        DEFAULT_ARG({
+            LIST_ENTRY(logo, true),
+            LIST_ENTRY(workspaces, true),
+        }))
+    CONFIG_LIST(EntryList, center,
+        DEFAULT_ARG({
+            LIST_ENTRY(activeWindow, true),
+        }))
+    CONFIG_LIST(EntryList, end,
+        DEFAULT_ARG({
+            LIST_ENTRY(tray, true),
+            LIST_ENTRY(clock, true),
+            LIST_ENTRY(statusIcons, true),
+            LIST_ENTRY(power, true),
+        }))
+};
+
 class BarConfig : public settings::ObjectNode {
     CONFIG_NODE(BarConfig, settings::ObjectNode)
 
     CONFIG_PROPERTY(bool, persistent, true)
     CONFIG_PROPERTY(bool, showOnHover, true)
     CONFIG_PROPERTY(int, dragThreshold, 20)
+    CONFIG_PROPERTY(QString, position, u"left"_s)
     CONFIG_SUBOBJECT(BarScrollActions, scrollActions)
     CONFIG_SUBOBJECT(BarPopouts, popouts)
     CONFIG_SUBOBJECT(BarWorkspaces, workspaces)
     CONFIG_SUBOBJECT(BarActiveWindow, activeWindow)
     CONFIG_SUBOBJECT(BarTray, tray)
     CONFIG_SUBOBJECT(BarClock, clock)
+    CONFIG_SUBOBJECT(BarDock, dock)
     CONFIG_LIST(EntryList, statusIcons,
         DEFAULT_ARG({
             LIST_ENTRY(lockStatus, true),
@@ -124,20 +160,12 @@ class BarConfig : public settings::ObjectNode {
             LIST_ENTRY(network, true),
             LIST_ENTRY(bluetooth, true),
             LIST_ENTRY(battery, true),
+            LIST_ENTRY(peripheralBattery, false),
+            LIST_ENTRY(notifications, true),
         }))
-    CONFIG_LIST(EntryList, entries,
-        DEFAULT_ARG({
-            LIST_ENTRY(logo, true),
-            LIST_ENTRY(workspaces, true),
-            LIST_ENTRY(spacer, true),
-            LIST_ENTRY(activeWindow, true),
-            LIST_ENTRY(spacer, true),
-            LIST_ENTRY(tray, true),
-            LIST_ENTRY(clock, true),
-            LIST_ENTRY(statusIcons, true),
-            LIST_ENTRY(power, true),
-        }))
+    CONFIG_SUBOBJECT(BarSections, entries)
     CONFIG_PROPERTY(QStringList, excludedScreens, {})
+    CONFIG_PROPERTY(QStringList, peripheralBatteryExcluded, {})
 };
 
 } // namespace caelestia::shell::config

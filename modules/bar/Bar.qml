@@ -10,56 +10,97 @@ import qs.modules.bar.components
 import qs.modules.bar.popouts as BarPopouts
 import qs.modules.bar.components.workspaces
 
-ColumnLayout {
+Item {
     id: root
 
     required property ShellScreen screen
+    Config.screen: screen.name
     required property ScreenState screenState
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
-    readonly property int vPadding: Tokens.padding.large
+    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+    // Match the bar's edge padding so the gap is the same on every side
+    readonly property int vPadding: isHorizontal ? Tokens.padding.small : Tokens.padding.large
+
+    readonly property real spacing: Tokens.spacing.medium
+
+    readonly property list<EntrySection> sections: [startSection, centerSection, endSection]
+
+    function entryAt(pos: real): EntryWrapper {
+        const x = isHorizontal ? pos : width / 2;
+        const y = isHorizontal ? height / 2 : pos;
+
+        for (const section of root.sections) {
+            const local = section.mapFromItem(root, x, y);
+            const wrapper = section.childAt(local.x, local.y) as EntryWrapper;
+            if (wrapper?.visible)
+                return wrapper;
+        }
+        return null;
+    }
 
     function closeTray(): void {
         if (!Config.bar.tray.compact)
             return;
 
-        for (let i = 0; i < repeater.count; i++) {
-            const tray = (repeater.itemAt(i) as EntryWrapper)?.item as Tray;
-            if (tray)
-                tray.expanded = false;
+        for (const section of root.sections) {
+            for (let i = 0; i < section.count; i++) {
+                const wrapper = section.itemAt(i) as EntryWrapper;
+                if (!wrapper)
+                    continue;
+                const tray = wrapper.item as Tray;
+                if (tray)
+                    tray.expanded = false;
+            }
         }
     }
 
-    function checkPopout(y: real): void {
-        const ch = childAt(width / 2, y) as EntryWrapper;
+    function sectionIdFor(wrapper: EntryWrapper): string {
+        if (wrapper.parent === startSection)
+            return "start";
+        if (wrapper.parent === centerSection)
+            return "center";
+        if (wrapper.parent === endSection)
+            return "end";
+        return "";
+    }
+
+    function checkPopout(pos: real): void {
+        const ch = root.entryAt(pos);
 
         if (ch?.entryId !== "tray")
             closeTray();
 
         if (!ch) {
+            if (popouts.hasCurrent && (popouts.currentName === "dockcontext" || popouts.currentName === "dockhover" || popouts.currentName === "activewindow")) return;
             popouts.hasCurrent = false;
             return;
         }
 
         const id = ch.entryId;
-        const top = ch.y;
+        const top = isHorizontal ? ch.mapToItem(root, 0, 0).x : ch.mapToItem(root, 0, 0).y;
+        popouts.currentSection = root.sectionIdFor(ch);
 
         if (id === "statusIcons" && Config.bar.popouts.statusIcons) {
             const items = (ch.item as StatusIcons).items;
-            const icon = items.childAt(items.width / 2, mapToItem(items, 0, y).y);
+            const icon = items.childAt(isHorizontal ? mapToItem(items, pos, 0).x : items.width / 2, isHorizontal ? items.height / 2 : mapToItem(items, 0, pos).y);
             if (icon) {
                 popouts.currentName = icon.name;
-                popouts.currentCenter = Qt.binding(() => icon.mapToItem(root, 0, icon.implicitHeight / 2).y);
+                popouts.currentCenter = isHorizontal ? icon.mapToItem(null, icon.implicitWidth / 2, 0).x : icon.mapToItem(null, 0, icon.implicitHeight / 2).y;
                 popouts.hasCurrent = true;
+            } else {
+                popouts.hasCurrent = false;
             }
-        } else if (id === "tray" && Config.bar.popouts.tray) {
+        } else if (id === "tray" && Config.bar.popouts.tray && !screenState.sidebar) {
             const tray = ch.item as Tray;
-            if (!Config.bar.tray.compact || (tray.expanded && !tray.expandIcon.contains(mapToItem(tray.expandIcon, tray.implicitWidth / 2, y)))) {
-                const index = Math.floor(((y - top - tray.padding * 2 + tray.spacing) / tray.layout.implicitHeight) * tray.items.count);
+            const mouseMap = mapToItem(tray.expandIcon, isHorizontal ? pos : tray.implicitWidth / 2, isHorizontal ? tray.implicitHeight / 2 : pos);
+            if (!Config.bar.tray.compact || (tray.expanded && !tray.expandIcon.contains(mouseMap))) {
+                const traySize = isHorizontal ? tray.layout.implicitWidth : tray.layout.implicitHeight;
+                const index = Math.floor(((pos - top - tray.padding * 2 + tray.spacing) / traySize) * tray.items.count);
                 const trayItem = tray.items.itemAt(index);
                 if (trayItem) {
                     popouts.currentName = `traymenu${index}`;
-                    popouts.currentCenter = Qt.binding(() => trayItem.mapToItem(root, 0, trayItem.implicitHeight / 2).y);
+                    popouts.currentCenter = isHorizontal ? trayItem.mapToItem(null, trayItem.implicitWidth / 2, 0).x : trayItem.mapToItem(null, 0, trayItem.implicitHeight / 2).y;
                     popouts.hasCurrent = true;
                 } else {
                     popouts.hasCurrent = false;
@@ -68,15 +109,28 @@ ColumnLayout {
                 popouts.hasCurrent = false;
                 tray.expanded = true;
             }
-        } else if (id === "activeWindow" && Config.bar.popouts.activeWindow && Config.bar.activeWindow.showOnHover) {
-            popouts.currentName = id.toLowerCase();
-            popouts.currentCenter = (ch.item as Item).mapToItem(root, 0, (ch.item as Item).implicitHeight / 2).y ?? 0;
-            popouts.hasCurrent = true;
+        } else if (id === "activeWindow" && Config.bar.popouts.activeWindow && Config.bar.activeWindow.showOnHover && Hypr.activeToplevel) {
+            const item = ch.item as Item;
+            if (item) {
+                const relPos = pos - top;
+                const inside = isHorizontal ? (relPos >= 0 && relPos <= item.implicitWidth) : (relPos >= 0 && relPos <= item.implicitHeight);
+                if (inside) {
+                    popouts.currentName = id.toLowerCase();
+                    popouts.currentCenter = isHorizontal ? item.mapToItem(null, item.implicitWidth / 2, 0).x : (item.mapToItem(null, 0, item.implicitHeight / 2).y ?? 0);
+                    popouts.hasCurrent = true;
+                } else {
+                    popouts.hasCurrent = false;
+                }
+            } else {
+                popouts.hasCurrent = false;
+            }
+        } else {
+            popouts.hasCurrent = false;
         }
     }
 
-    function handleWheel(y: real, angleDelta: point): void {
-        const ch = childAt(width / 2, y) as EntryWrapper;
+    function handleWheel(pos: real, angleDelta: point): void {
+        const ch = root.entryAt(pos);
         if (ch?.entryId === "workspaces" && Config.bar.scrollActions.workspaces) {
             // Workspace scroll
             const mon = Hypr.monitorFor(screen);
@@ -85,7 +139,7 @@ ColumnLayout {
                 Hypr.dispatch(Hypr.usingLua ? `hl.dsp.workspace.toggle_special("${specialWs.slice(8)}")` : `togglespecialworkspace ${specialWs.slice(8)}`);
             else if (angleDelta.y < 0 || mon.activeWorkspace?.id > 1)
                 Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({ workspace = "r${angleDelta.y > 0 ? "-" : "+"}1" })` : `workspace r${angleDelta.y > 0 ? "-" : "+"}1`);
-        } else if (y < screen.height / 2 && Config.bar.scrollActions.volume) {
+        } else if ((isHorizontal ? pos < screen.width / 2 : pos < screen.height / 2) && Config.bar.scrollActions.volume) {
             // Volume scroll on top half
             if (angleDelta.y > 0)
                 Audio.incrementVolume();
@@ -101,83 +155,190 @@ ColumnLayout {
         }
     }
 
-    spacing: Tokens.spacing.medium
+    EntrySection {
+        id: startSection
 
-    Repeater {
-        id: repeater
+        values: root.Config.bar.entries.start.values
+    }
 
-        model: ScriptModel {
-            values: root.Config.bar.entries.values.filter(e => e.enabled)
+    EntrySection {
+        id: centerSection
+
+        values: root.Config.bar.entries.center.values
+    }
+
+    EntrySection {
+        id: endSection
+
+        values: root.Config.bar.entries.end.values
+    }
+
+    states: [
+        State {
+            name: "horizontal"
+            when: root.isHorizontal
+
+            AnchorChanges {
+                target: startSection
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            AnchorChanges {
+                target: centerSection
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            AnchorChanges {
+                target: endSection
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            PropertyChanges {
+                target: startSection
+                anchors.leftMargin: root.vPadding
+                anchors.topMargin: 0
+            }
+            PropertyChanges {
+                target: endSection
+                anchors.rightMargin: root.vPadding
+                anchors.bottomMargin: 0
+            }
+        },
+        State {
+            name: "vertical"
+            when: !root.isHorizontal
+
+            AnchorChanges {
+                target: startSection
+                anchors.top: parent.top
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            AnchorChanges {
+                target: centerSection
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            AnchorChanges {
+                target: endSection
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            PropertyChanges {
+                target: startSection
+                anchors.topMargin: root.vPadding
+                anchors.leftMargin: 0
+            }
+            PropertyChanges {
+                target: endSection
+                anchors.bottomMargin: root.vPadding
+                anchors.rightMargin: 0
+            }
+        }
+    ]
+
+    component EntrySection: GridLayout {
+        id: section
+
+        required property var values
+
+        readonly property int count: repeater.count
+
+        function itemAt(index: int): Item {
+            return repeater.itemAt(index);
         }
 
-        DelegateChooser {
-            role: "id"
+        columns: root.isHorizontal ? -1 : 1
+        rows: root.isHorizontal ? 1 : -1
+        flow: root.isHorizontal ? GridLayout.LeftToRight : GridLayout.TopToBottom
 
-            DelegateChoice {
-                roleValue: "spacer"
-                delegate: EntryWrapper {
-                    Layout.fillHeight: true
+        columnSpacing: root.spacing
+        rowSpacing: root.spacing
+
+        Repeater {
+            id: repeater
+
+            model: ScriptModel {
+                values: section.values.filter(e => e.enabled)
+            }
+
+            delegate: EntryChooser {}
+        }
+    }
+
+    component EntryChooser: DelegateChooser {
+        role: "id"
+
+        DelegateChoice {
+            roleValue: "spacer"
+            delegate: EntryWrapper {
+                Layout.fillHeight: !root.isHorizontal && enabled
+                Layout.fillWidth: root.isHorizontal && enabled
+            }
+        }
+        DelegateChoice {
+            roleValue: "logo"
+            delegate: EntryWrapper {
+                OsIcon {
+                    objectName: "taskbarLogo"
                 }
             }
-            DelegateChoice {
-                roleValue: "logo"
-                delegate: EntryWrapper {
-                    OsIcon {
-                        objectName: "taskbarLogo"
-                    }
+        }
+        DelegateChoice {
+            roleValue: "workspaces"
+            delegate: EntryWrapper {
+                Workspaces {
+                    objectName: "taskbarWorkspaces"
+                    screen: root.screen
+                    fullscreen: root.fullscreen
                 }
             }
-            DelegateChoice {
-                roleValue: "workspaces"
-                delegate: EntryWrapper {
-                    Workspaces {
-                        objectName: "taskbarWorkspaces"
-                        screen: root.screen
-                        fullscreen: root.fullscreen
-                    }
+        }
+        DelegateChoice {
+            roleValue: "dock"
+            // The dock is drawn by the dynamic island (modules/island) in the drawers window,
+            // centred on the bar; this entry only enables it
+            delegate: EntryWrapper {}
+        }
+        DelegateChoice {
+            roleValue: "activeWindow"
+            delegate: EntryWrapper {
+                ActiveWindow {
+                    objectName: "taskbarActiveWindow"
+                    bar: root
+                    monitor: Brightness.getMonitorForScreen(root.screen)
                 }
             }
-            DelegateChoice {
-                roleValue: "activeWindow"
-                delegate: EntryWrapper {
-                    ActiveWindow {
-                        objectName: "taskbarActiveWindow"
-                        bar: root
-                        monitor: Brightness.getMonitorForScreen(root.screen)
-                    }
+        }
+        DelegateChoice {
+            roleValue: "tray"
+            delegate: EntryWrapper {
+                Tray {
+                    objectName: "taskbarTray"
                 }
             }
-            DelegateChoice {
-                roleValue: "tray"
-                delegate: EntryWrapper {
-                    Tray {
-                        objectName: "taskbarTray"
-                    }
+        }
+        DelegateChoice {
+            roleValue: "clock"
+            delegate: EntryWrapper {
+                Clock {
+                    objectName: "taskbarClock"
                 }
             }
-            DelegateChoice {
-                roleValue: "clock"
-                delegate: EntryWrapper {
-                    Clock {
-                        objectName: "taskbarClock"
-                    }
+        }
+        DelegateChoice {
+            roleValue: "statusIcons"
+            delegate: EntryWrapper {
+                StatusIcons {
+                    objectName: "taskbarStatusIcons"
                 }
             }
-            DelegateChoice {
-                roleValue: "statusIcons"
-                delegate: EntryWrapper {
-                    StatusIcons {
-                        objectName: "taskbarStatusIcons"
-                    }
-                }
-            }
-            DelegateChoice {
-                roleValue: "power"
-                delegate: EntryWrapper {
-                    Power {
-                        objectName: "taskbarPowerButton"
-                        screenState: root.screenState
-                    }
+        }
+        DelegateChoice {
+            roleValue: "power"
+            delegate: EntryWrapper {
+                Power {
+                    objectName: "taskbarPowerButton"
+                    screenState: root.screenState
                 }
             }
         }
@@ -189,9 +350,7 @@ ColumnLayout {
         default property Item item
         readonly property string entryId: modelData.id
 
-        Layout.topMargin: index === 0 ? root.vPadding : 0
-        Layout.bottomMargin: index === repeater.count - 1 ? root.vPadding : 0
-        Layout.alignment: Qt.AlignHCenter
+        Layout.alignment: root.isHorizontal ? Qt.AlignVCenter : Qt.AlignHCenter
 
         implicitWidth: item?.implicitWidth ?? 0
         implicitHeight: item?.implicitHeight ?? 0

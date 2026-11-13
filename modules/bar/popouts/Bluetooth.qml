@@ -16,21 +16,39 @@ ColumnLayout {
 
     required property PopoutState popouts
 
-    width: 300
+    property bool _isSidebarOpen: popouts.sidebarOpen && popouts.isHorizontal && popouts.currentSection === "end"
+
+    width: Math.max(300, _isSidebarOpen ? Tokens.sizes.sidebar.width - Tokens.padding.extraLargeIncreased : 0)
     spacing: Tokens.spacing.small
 
     StyledText {
         Layout.topMargin: Tokens.padding.medium
-        Layout.rightMargin: Tokens.padding.extraSmall
-        text: Tr.tr("Bluetooth")
-        font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
+        Layout.leftMargin: Tokens.padding.small
+        text: qsTr("Bluetooth")
+        font.weight: 500
     }
+
+    StyledRect {
+        Layout.fillWidth: true
+        implicitWidth: cardLayout.implicitWidth + Tokens.padding.medium * 2
+        implicitHeight: cardLayout.implicitHeight + Tokens.padding.medium * 2
+        radius: Tokens.rounding.medium
+        color: Colours.tPalette.m3surfaceContainer
+        clip: true
+
+        ColumnLayout {
+            id: cardLayout
+
+            width: parent.width - Tokens.padding.medium * 2
+            x: Tokens.padding.medium
+            y: Tokens.padding.medium
+            spacing: Tokens.spacing.small
 
     Toggle {
         label: Tr.trCtx("Enabled", "toggle label")
-        checked: Bluetooth.defaultAdapter?.enabled ?? false
+        checked: Bluetooth.defaultAdapter?.enabled ?? false // qmllint disable unresolved-type
         toggle.onToggled: {
-            const adapter = Bluetooth.defaultAdapter;
+            const adapter = Bluetooth.defaultAdapter; // qmllint disable unresolved-type
             if (adapter)
                 adapter.enabled = checked;
         }
@@ -38,9 +56,9 @@ ColumnLayout {
 
     Toggle {
         label: Tr.trCtx("Discovering", "bluetooth adapter state")
-        checked: Bluetooth.defaultAdapter?.discovering ?? false
+        checked: Bluetooth.defaultAdapter?.discovering ?? false // qmllint disable unresolved-type
         toggle.onToggled: {
-            const adapter = Bluetooth.defaultAdapter;
+            const adapter = Bluetooth.defaultAdapter; // qmllint disable unresolved-type
             if (adapter)
                 adapter.discovering = checked;
         }
@@ -50,7 +68,7 @@ ColumnLayout {
         Layout.topMargin: Tokens.spacing.small
         Layout.rightMargin: Tokens.padding.extraSmall
         text: {
-            const devices = Bluetooth.devices.values;
+            const devices = Bluetooth.devices.values; // qmllint disable unresolved-type
             const connected = devices.reduce((total, d) => total + d.connected, 0);
             if (connected > 0)
                 // TRANSLATORS: %n = total paired devices, %1 = how many of them are connected
@@ -64,14 +82,14 @@ ColumnLayout {
     Repeater {
         model: ScriptModel {
             // Connected/paired devices first, then devices that report their own name, and unnamed ones last
-            values: [...Bluetooth.devices.values].sort((a, b) => (b.connected - a.connected) || (b.paired - a.paired) || (!a.deviceName - !b.deviceName) || a.name.localeCompare(b.name)).slice(0, 5)
+            values: [...Bluetooth.devices.values].sort((a, b) => (b.connected - a.connected) || (b.paired - a.paired) || (!a.deviceName - !b.deviceName) || a.name.localeCompare(b.name)).slice(0, 5) // qmllint disable unresolved-type
         }
 
         RowLayout {
             id: device
 
             required property BluetoothDevice modelData
-            readonly property bool loading: modelData.state === BluetoothDeviceState.Connecting || modelData.state === BluetoothDeviceState.Disconnecting
+            readonly property bool loading: modelData.state === BluetoothDeviceState.Connecting || modelData.state === BluetoothDeviceState.Disconnecting // qmllint disable unresolved-type
 
             Layout.fillWidth: true
             Layout.rightMargin: Tokens.padding.extraSmall
@@ -107,10 +125,21 @@ ColumnLayout {
                 elide: Text.ElideRight
             }
 
-            MaterialIcon {
-                visible: device.modelData.state === BluetoothDeviceState.Connected
-                text: device.modelData.batteryAvailable ? Icons.getBatteryIcon(device.modelData.battery) : "battery_alert"
-                color: device.modelData.batteryAvailable && device.modelData.battery < 0.2 ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+            RowLayout {
+                visible: device.modelData.state === BluetoothDeviceState.Connected  // qmllint disable unresolved-type
+                spacing: Tokens.spacing.extraSmall
+
+                MaterialIcon {
+                    text: device.modelData.batteryAvailable ? Icons.getBatteryIcon(device.modelData.battery) : "battery_alert"
+                    color: device.modelData.batteryAvailable && device.modelData.battery < 0.2 ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+                }
+
+                StyledText {
+                    visible: device.modelData.batteryAvailable // qmllint disable unresolved-type
+                    text: device.modelData.batteryAvailable ? qsTr("%1%").arg(Math.round(device.modelData.battery * 100)) : "" // qmllint disable unresolved-type
+                    font: Tokens.font.body.small
+                    color: device.modelData.batteryAvailable && device.modelData.battery < 0.2 ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+                }
             }
 
             StyledRect {
@@ -120,7 +149,7 @@ ColumnLayout {
                 implicitHeight: connectIcon.implicitHeight + Tokens.padding.extraSmall
 
                 radius: Tokens.rounding.full
-                color: Qt.alpha(Colours.palette.m3primary, device.modelData.state === BluetoothDeviceState.Connected ? 1 : 0)
+                color: Qt.alpha(Colours.palette.m3primary, device.modelData.state === BluetoothDeviceState.Connected ? 1 : 0) // qmllint disable unresolved-type
 
                 CircularIndicator {
                     anchors.fill: parent
@@ -128,7 +157,7 @@ ColumnLayout {
                 }
 
                 StateLayer {
-                    color: device.modelData.state === BluetoothDeviceState.Connected ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                    color: device.modelData.state === BluetoothDeviceState.Connected ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface // qmllint disable unresolved-type
                     disabled: device.loading
                     onClicked: device.modelData.connected = !device.modelData.connected
                 }
@@ -139,7 +168,7 @@ ColumnLayout {
                     anchors.centerIn: parent
                     animate: true
                     text: device.modelData.connected ? "link_off" : "link"
-                    color: device.modelData.state === BluetoothDeviceState.Connected ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                    color: device.modelData.state === BluetoothDeviceState.Connected ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface // qmllint disable unresolved-type
 
                     opacity: device.loading ? 0 : 1
 
@@ -173,13 +202,15 @@ ColumnLayout {
         }
     }
 
+        }
+    }
+
     IconTextButton {
         Layout.fillWidth: true
-        Layout.topMargin: Tokens.spacing.medium
         inactiveColour: Colours.palette.m3primaryContainer
         inactiveOnColour: Colours.palette.m3onPrimaryContainer
-        verticalPadding: Tokens.padding.extraSmall
-        text: Tr.tr("Open settings")
+        verticalPadding: Tokens.padding.small
+        text: qsTr("Open settings")
         icon: "settings"
 
         onClicked: root.popouts.detachRequested("bluetooth")

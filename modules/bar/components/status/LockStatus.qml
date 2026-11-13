@@ -1,19 +1,27 @@
 import QtQuick
 import QtQuick.Layouts
+import Caelestia.Config
 import qs.components
 import qs.services
 
-ColumnLayout {
+GridLayout {
     id: root
 
     required property color colour
     required property int parentSpacing
 
-    property real gap: Hypr.capsLock && Hypr.numLock ? parentSpacing : 0
-    property real capsHeight: Hypr.capsLock ? capslockIcon.implicitHeight : 0
-    property real numHeight: Hypr.numLock ? numlockIcon.implicitHeight : 0
+    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
 
-    spacing: Math.round(gap)
+    property real gap: Hypr.capsLock && Hypr.numLock ? parentSpacing : 0
+    property real capsSize: Hypr.capsLock ? (isHorizontal ? capslockIcon.implicitWidth : capslockIcon.implicitHeight) : 0
+    property real numSize: Hypr.numLock ? (isHorizontal ? numlockIcon.implicitWidth : numlockIcon.implicitHeight) : 0
+
+    columns: isHorizontal ? -1 : 1
+    rows: isHorizontal ? 1 : -1
+    flow: isHorizontal ? GridLayout.LeftToRight : GridLayout.TopToBottom
+
+    columnSpacing: isHorizontal ? Math.round(gap) : 0
+    rowSpacing: isHorizontal ? 0 : Math.round(gap)
 
     Behavior on gap {
         Anim {
@@ -21,21 +29,21 @@ ColumnLayout {
         }
     }
 
-    Behavior on capsHeight {
+    Behavior on capsSize {
         Anim {
             type: Anim.SlowEffects
         }
     }
 
-    Behavior on numHeight {
+    Behavior on numSize {
         Anim {
             type: Anim.SlowEffects
         }
     }
 
     Item {
-        implicitWidth: capslockIcon.implicitWidth
-        implicitHeight: Math.round(root.capsHeight)
+        implicitWidth: isHorizontal ? Math.round(root.capsSize) : capslockIcon.implicitWidth
+        implicitHeight: isHorizontal ? capslockIcon.implicitHeight : Math.round(root.capsSize)
 
         MaterialIcon {
             id: capslockIcon
@@ -63,8 +71,8 @@ ColumnLayout {
     }
 
     Item {
-        implicitWidth: numlockIcon.implicitWidth
-        implicitHeight: Math.round(root.numHeight)
+        implicitWidth: isHorizontal ? Math.round(root.numSize) : numlockIcon.implicitWidth
+        implicitHeight: isHorizontal ? numlockIcon.implicitHeight : Math.round(root.numSize)
 
         MaterialIcon {
             id: numlockIcon

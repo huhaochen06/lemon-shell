@@ -19,70 +19,114 @@ PageBase {
 
         StepperRow {
             first: true
-            // TRANSLATORS: the number of workspaces shown on the bar
-            label: Tr.trCtx("Shown", "bar workspaces")
-            subtext: Tr.tr("Number of workspaces displayed")
-            value: Config.bar.workspaces.shown
+            label: qsTr("Shown")
+            subtext: qsTr("Number of workspaces displayed")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "shown"
+            value: root.targetConfig.bar.workspaces.shown
             from: 1
             to: 20
             stepSize: 1
-            onMoved: v => GlobalConfig.bar.workspaces.shown = v
+            onMoved: v => {
+                root.targetConfig.bar.workspaces.shown = v;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.trCtx("Active indicator", "bar workspaces")
-            checked: Config.bar.workspaces.activeIndicator
-            onToggled: GlobalConfig.bar.workspaces.activeIndicator = checked
+            text: qsTr("Active indicator")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "activeIndicator"
+            checked: root.targetConfig.bar.workspaces.activeIndicator
+            onToggled: {
+                root.targetConfig.bar.workspaces.activeIndicator = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.trCtx("Active trail", "bar workspaces")
-            checked: Config.bar.workspaces.activeTrail
-            onToggled: GlobalConfig.bar.workspaces.activeTrail = checked
+            text: qsTr("Active trail")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "activeTrail"
+            checked: root.targetConfig.bar.workspaces.activeTrail
+            onToggled: {
+                root.targetConfig.bar.workspaces.activeTrail = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.trCtx("Occupied background", "bar workspaces")
-            checked: Config.bar.workspaces.occupiedBg
-            onToggled: GlobalConfig.bar.workspaces.occupiedBg = checked
+            text: qsTr("Occupied background")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "occupiedBg"
+            checked: root.targetConfig.bar.workspaces.occupiedBg
+            onToggled: {
+                root.targetConfig.bar.workspaces.occupiedBg = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.trCtx("Show unoccupied", "bar workspaces")
-            subtext: Tr.tr("Show workspaces that are inactive and empty")
-            checked: Config.bar.workspaces.showUnoccupied
-            onToggled: GlobalConfig.bar.workspaces.showUnoccupied = checked
+            Layout.fillWidth: true
+            text: qsTr("Use material icons for indicators")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "useIcon"
+            checked: root.targetConfig.bar.workspaces.useIcon
+            onToggled: {
+                root.targetConfig.bar.workspaces.useIcon = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.trCtx("Per monitor", "bar workspaces")
-            subtext: Tr.tr("Hide workspaces not on the current monitor")
-            checked: Config.bar.workspaces.perMonitor
-            onToggled: GlobalConfig.bar.workspaces.perMonitor = checked
+            text: qsTr("Show windows")
+            subtext: qsTr("Show icons of open windows on each workspace")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "showWindows"
+            checked: root.targetConfig.bar.workspaces.showWindows
+            onToggled: {
+                root.targetConfig.bar.workspaces.showWindows = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.trCtx("Show windows", "bar workspaces")
-            subtext: Tr.tr("Show icons of open windows on each workspace")
-            checked: Config.bar.workspaces.showWindows
-            onToggled: GlobalConfig.bar.workspaces.showWindows = checked
+            text: qsTr("Show unoccupied")
+            subtext: qsTr("Show workspaces that are inactive and empty")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "showUnoccupied"
+            checked: root.targetConfig.bar.workspaces.showUnoccupied
+            onToggled: {
+                root.targetConfig.bar.workspaces.showUnoccupied = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.trCtx("Windows on special workspaces", "bar workspaces")
-            checked: Config.bar.workspaces.showWindowsOnSpecialWorkspaces
-            onToggled: GlobalConfig.bar.workspaces.showWindowsOnSpecialWorkspaces = checked
+            last: true
+            text: qsTr("Windows on special workspaces")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "showWindowsOnSpecialWorkspaces"
+            checked: root.targetConfig.bar.workspaces.showWindowsOnSpecialWorkspaces
+            onToggled: {
+                root.targetConfig.bar.workspaces.showWindowsOnSpecialWorkspaces = checked;
+                root.targetConfig.save();
+            }
         }
 
         StepperRow {
-            last: true
-            // TRANSLATORS: maximum number of window icons shown per workspace
-            label: Tr.trCtx("Max window icons", "bar workspaces")
-            value: Config.bar.workspaces.maxWindowIcons
+            label: qsTr("Max window icons")
+            subtext: qsTr("Maximum number of window icons shown per workspace")
+            configNode: root.targetConfig.bar.workspaces
+            propertyName: "maxWindowIcons"
+            value: root.targetConfig.bar.workspaces.maxWindowIcons
             from: 0
             to: 20
             stepSize: 1
-            onMoved: v => GlobalConfig.bar.workspaces.maxWindowIcons = v
+            onMoved: v => {
+                root.targetConfig.bar.workspaces.maxWindowIcons = v;
+                root.targetConfig.save();
+            }
         }
     }
 }

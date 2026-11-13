@@ -7,16 +7,21 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.services
+import ".."
 
 ColumnLayout {
     id: root
+
+    required property PopoutState popouts
+
+    property bool _isSidebarOpen: popouts.sidebarOpen && popouts.isHorizontal && popouts.currentSection === "end"
 
     function refresh() {
         kb.refresh();
     }
 
     spacing: Tokens.spacing.small
-    width: Tokens.sizes.bar.kbLayoutWidth
+    width: Math.max(Tokens.sizes.bar.kbLayoutWidth, _isSidebarOpen ? Tokens.sizes.sidebar.width - Tokens.padding.extraLargeIncreased : 0)
 
     Component.onCompleted: kb.start()
 

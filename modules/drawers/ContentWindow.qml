@@ -8,14 +8,17 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 import Caelestia.Blobs
 import Caelestia.Config
+import Caelestia.State
 import qs.components
 import qs.components.containers
 import qs.services
 import qs.modules.bar
-import qs.daemons
+import qs.modules.island
 
 StyledWindow {
     id: root
+
+    Config.screen: screen.name
 
     readonly property alias bar: bar
     readonly property alias interactionWrapper: interactions
@@ -39,7 +42,7 @@ StyledWindow {
     property real fsTransitionProg: hasFullscreen ? 1 : 0
     readonly property real sdfBorderOffset: 2 * fsTransitionProg // SDFs joins are not exact, so offset by 2px to ensure nothing shows
     readonly property real borderThickness: contentItem.Config.border.thickness * (1 - fsTransitionProg)
-    readonly property real borderRounding: (GameMode.enabled && GlobalConfig.utilities.gameMode.options["decoration:rounding"] === 0 ? 0 : contentItem.Config.border.rounding) * (1 - fsTransitionProg)
+    readonly property real borderRounding: (RuntimeState.gameMode && GlobalConfig.utilities.gameMode.disableHyprlandGaps ? 0 : contentItem.Config.border.rounding) * (1 - fsTransitionProg)
     readonly property real shadowOpacity: 0.7 * (1 - fsTransitionProg)
     readonly property real borderLayoutThickness: hasFullscreen ? 0 : contentItem.Config.border.thickness
 
@@ -69,7 +72,8 @@ StyledWindow {
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.launcher || screenState.session ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    // The dynamic island takes the keyboard while it asks for a password (polkit)
+    WlrLayershell.keyboardFocus: island.wantsKeyboard ? WlrKeyboardFocus.Exclusive : screenState.launcher || screenState.session || screenState.dashboard || screenState.sidebar || panels.popouts.hasCurrent ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     mask: hasFullscreen ? emptyRegion : regions
 
@@ -89,15 +93,15 @@ StyledWindow {
     Region {
         id: emptyRegion
 
-        x: panels.notifications.x + bar.implicitWidth
-        y: panels.notifications.y + root.borderThickness
+        x: panels.notifications.x + panels.leftMargin
+        y: panels.notifications.y + panels.topMargin
         width: panels.notifications.width
         height: panels.notifications.height
 
         Region {
             x: root.width - width
-            y: panels.osdWrapper.y + root.borderThickness
-            width: panels.osdWrapper.width * (1 - panels.osd.offsetScale) + root.borderThickness
+            y: panels.osdWrapper.y + panels.topMargin
+            width: panels.osdWrapper.width * (1 - panels.osd.offsetScale) + panels.topMargin
             height: panels.osd.height
         }
     }
@@ -108,6 +112,7 @@ StyledWindow {
         bar: bar
         panels: panels
         win: root
+        island: island
     }
 
     HyprlandFocusGrab {
@@ -116,6 +121,7 @@ StyledWindow {
         active: {
             const s = root.screenState;
             const conf = root.contentItem.Config;
+            if (s.workspaceDrawer) return true;
             if ((s.launcher && conf.launcher.enabled) || (s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled))
                 return true;
             if (!conf.dashboard.showOnHover && s.dashboard && conf.dashboard.enabled)
@@ -126,6 +132,7 @@ StyledWindow {
         }
         windows: [root]
         onCleared: {
+            root.screenState.workspaceDrawer = false;
             root.screenState.launcher = false;
             root.screenState.session = false;
             root.screenState.sidebar = false;
@@ -148,8 +155,11 @@ StyledWindow {
     }
 
     Item {
+        id: layoutContainer
+
+        Config.screen: root.screen.name
         anchors.fill: parent
-        opacity: root.surfaceColour.a
+        opacity: Colours.transparency.enabled ? Colours.transparency.base : root.surfaceColour.a
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
@@ -165,15 +175,18 @@ StyledWindow {
         }
 
         BlobInvertedRect {
+            Config.screen: root.screen.name
             anchors.fill: parent
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
+            // The bar has no background of its own: only the screen border is drawn here
             group: blobGroup
             radius: root.borderRounding
-            borderLeft: bar.implicitWidth - anchors.margins - root.sdfBorderOffset
+            borderLeft: root.borderThickness - anchors.margins - root.sdfBorderOffset
             borderRight: root.borderThickness - anchors.margins - root.sdfBorderOffset
             borderTop: root.borderThickness - anchors.margins - root.sdfBorderOffset
             borderBottom: root.borderThickness - anchors.margins - root.sdfBorderOffset
         }
+
 
         PanelBg {
             id: dashBg
@@ -194,8 +207,8 @@ StyledWindow {
 
             panel: panels.sessionWrapper
             deformAmount: 0.2
-            x: panels.sessionWrapper.x + panels.session.x + bar.implicitWidth
-            implicitWidth: panels.session.width
+            x: panels.sessionWrapper.x + panels.leftMargin
+            implicitWidth: panels.sessionWrapper.width
         }
 
         PanelBg {
@@ -204,8 +217,20 @@ StyledWindow {
             panel: panels.sidebar
             deformAmount: 0.03
             implicitHeight: panel.height * (1 / rawDeformMatrix.m22) + 2
-            exclude: panels.sidebar.offsetScale > 0.08 ? [] : [utilsBg]
-            bottomLeftRadius: Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius
+            
+            property bool connectedToPopout: (Config.bar.position === "top" || Config.bar.position === "bottom") && panels.popouts.sidebarOpen && panels.popouts.currentSection === "end" && panels.popouts.implicitWidth <= Tokens.sizes.sidebar.width + 1 && !panels.popouts.isDockPopout
+            
+            exclude: {
+                let arr = [];
+                if (panels.sidebar.offsetScale <= 0.08) arr.push(utilsBg);
+                if (connectedToPopout) arr.push(popoutBg);
+                return arr;
+            }
+            
+            topLeftRadius: ((Config.bar.position === "top" && connectedToPopout) ? 0 : (Config.bar.position === "bottom" ? Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius : radius))
+            topRightRadius: ((Config.bar.position === "top" && connectedToPopout) ? 0 : (Config.bar.position === "bottom" ? Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius : radius))
+            bottomLeftRadius: ((Config.bar.position === "bottom" && connectedToPopout) ? 0 : (Config.bar.position === "right" ? radius : Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius))
+            bottomRightRadius: ((Config.bar.position === "bottom" && connectedToPopout) ? 0 : (Config.bar.position === "right" ? Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius : radius))
         }
 
         PanelBg {
@@ -213,8 +238,23 @@ StyledWindow {
 
             panel: panels.osdWrapper
             deformAmount: 0.25
-            x: panels.osdWrapper.x + panels.osd.x + bar.implicitWidth
-            implicitWidth: panels.osd.width
+            x: panels.osdWrapper.x + panels.leftMargin
+            implicitWidth: panels.osdWrapper.width
+        }
+
+        PanelBg {
+            id: workspaceOverviewBg
+            
+            panel: panels.workspaceOverview
+            deformAmount: 0.03
+            
+            exclude: []
+            
+            property bool isAnchoredRight: Config.bar.position === "right"
+            topRightRadius: (!isAnchoredRight ? radius : Math.max(0, Math.min(1, panels.workspaceOverview.offsetScale / 0.3)) * radius)
+            bottomRightRadius: (!isAnchoredRight ? radius : Math.max(0, Math.min(1, panels.workspaceOverview.offsetScale / 0.3)) * radius)
+            topLeftRadius: (isAnchoredRight ? radius : Math.max(0, Math.min(1, panels.workspaceOverview.offsetScale / 0.3)) * radius)
+            bottomLeftRadius: (isAnchoredRight ? radius : Math.max(0, Math.min(1, panels.workspaceOverview.offsetScale / 0.3)) * radius)
         }
 
         PanelBg {
@@ -229,22 +269,61 @@ StyledWindow {
             panel: panels.utilities
             deformAmount: panels.sidebar.visible ? 0.1 : 0.15
             exclude: panels.sidebar.offsetScale > 0.08 ? [] : [sidebarBg]
-            topLeftRadius: Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius
+            topLeftRadius: (Config.bar.position === "right" ? radius : (Config.bar.position === "bottom" ? radius : Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius))
+            topRightRadius: (Config.bar.position === "right" ? Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius : (Config.bar.position === "bottom" ? radius : Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius))
+            bottomLeftRadius: (Config.bar.position === "bottom" ? Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius : radius)
+            bottomRightRadius: (Config.bar.position === "bottom" ? Math.max(0, Math.min(1, panels.sidebar.offsetScale / 0.3)) * radius : radius)
         }
 
         PanelBg {
             id: popoutBg
 
-            // Extra width to prevent vertical movement deformation partially detaching panel from bar
-            property real extraWidth: panels.popouts.isDetached ? 0 : 0.2
+            // No extra shift: the bar has no background for the popout to stay attached to
+            property real extraShift: 0
+            property bool connectedToSidebar: (bar.position === "top" || bar.position === "bottom") && panels.popouts.sidebarOpen && panels.popouts.currentSection === "end" && panels.popouts.implicitWidth <= Tokens.sizes.sidebar.width + 1 && !panels.popouts.isDockPopout
 
             panel: panels.popoutsWrapper
-            deformAmount: panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1
-            x: panels.popoutsWrapper.x + panels.popouts.x + bar.implicitWidth - panels.popouts.width * extraWidth
-            implicitWidth: panels.popouts.width * (1 + extraWidth)
+            deformAmount: connectedToSidebar ? 0.03 : (panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1)
+            exclude: connectedToSidebar ? [sidebarBg] : []
+            
+            x: {
+                const baseX = panels.popoutsWrapper.x + panels.popouts.x + panels.leftMargin;
+                if (bar.position === "left")
+                    return baseX - panels.popouts.implicitWidth * extraShift;
+                return baseX;
+            }
+            implicitWidth: {
+                if (bar.position === "left" || bar.position === "right")
+                    return panels.popouts.implicitWidth * (1 + extraShift);
+                return panels.popouts.implicitWidth;
+            }
+            
+            bottomLeftRadius: ((bar.position === "top" && connectedToSidebar) ? 0 : radius)
+            bottomRightRadius: ((bar.position === "top" && connectedToSidebar) ? 0 : radius)
+            topLeftRadius: ((bar.position === "bottom" && connectedToSidebar) ? 0 : radius)
+            topRightRadius: ((bar.position === "bottom" && connectedToSidebar) ? 0 : radius)
 
-            Behavior on extraWidth {
-                Anim {}
+            y: {
+                const baseY = panels.popoutsWrapper.y + panels.popouts.y + panels.topMargin;
+                if (bar.position === "top")
+                    return baseY - panels.popouts.implicitHeight * extraShift;
+                if (bar.position === "bottom" && connectedToSidebar)
+                    return baseY - Tokens.spacing.medium - 10;
+                return baseY;
+            }
+            implicitHeight: {
+                if (bar.position === "top" || bar.position === "bottom") {
+                    let h = panels.popouts.implicitHeight * (1 + extraShift);
+                    if (connectedToSidebar) h += Tokens.spacing.medium + 10;
+                    return h;
+                }
+                return panels.popouts.implicitHeight;
+            }
+
+            Behavior on extraShift {
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
             }
         }
     }
@@ -260,6 +339,100 @@ StyledWindow {
         borderThickness: root.borderLayoutThickness
         fullscreen: root.hasFullscreen
 
+        states: [
+            State {
+                name: "left"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "left"
+
+                AnchorChanges {
+                    target: bar
+                    anchors.left: parent.left
+                    anchors.right: undefined
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                }
+                PropertyChanges {
+                    target: bar
+                    width: bar.implicitWidth
+                    height: undefined
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
+                    anchors.leftMargin: 0
+                    anchors.rightMargin: 0
+                }
+            },
+
+            State {
+                name: "right"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "right"
+
+                AnchorChanges {
+                    target: bar
+                    anchors.left: undefined
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                }
+                PropertyChanges {
+                    target: bar
+                    width: bar.implicitWidth
+                    height: undefined
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
+                    anchors.leftMargin: 0
+                    anchors.rightMargin: 0
+                }
+            },
+
+            State {
+                name: "top"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "top"
+
+                AnchorChanges {
+                    target: bar
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: undefined
+                }
+                PropertyChanges {
+                    target: bar
+                    width: undefined
+                    height: bar.implicitHeight
+                    anchors.leftMargin: 0
+                    anchors.rightMargin: 0
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
+                }
+            },
+
+            State {
+                name: "bottom"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "bottom"
+
+                AnchorChanges {
+                    target: bar
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: undefined
+                    anchors.bottom: parent.bottom
+                }
+                PropertyChanges {
+                    target: bar
+                    width: undefined
+                    height: bar.implicitHeight
+                    anchors.leftMargin: 0
+                    anchors.rightMargin: 0
+                    anchors.bottomMargin: 0
+                    anchors.topMargin: 0
+                }
+            }
+        ]
+
         Panels {
             id: panels
 
@@ -268,6 +441,8 @@ StyledWindow {
             bar: bar
             borderThickness: root.borderThickness
 
+            // The dynamic island shows volume/brightness changes (unless disabled or its expanded view is open)
+            osd.suppressChangePopup: island.handlesLevels
             utilities.horizontalStretch: (sidebarBg.rawDeformMatrix.m11 - 1) / 2 + 1
             utilities.deformMatrix: utilsBg.rawDeformMatrix
 
@@ -289,6 +464,9 @@ StyledWindow {
             notifications.transform: Matrix4x4 {
                 matrix: notifsBg.deformMatrix
             }
+            workspaceOverview.transform: Matrix4x4 {
+                matrix: workspaceOverviewBg.deformMatrix
+            }
             utilities.transform: Matrix4x4 {
                 matrix: utilsBg.deformMatrix
             }
@@ -300,13 +478,20 @@ StyledWindow {
         BarWrapper {
             id: bar
 
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-
             screen: root.screen
             screenState: root.screenState
             popouts: panels.popouts
 
+            fullscreen: root.hasFullscreen
+        }
+
+        // The dock pill, drawn over the bar so it can grow past it
+        DynamicIsland {
+            id: island
+
+            popouts: panels.popouts
+            bar: bar
+            screenState: root.screenState
             fullscreen: root.hasFullscreen
         }
     }
@@ -338,10 +523,12 @@ StyledWindow {
     component PanelBg: BlobRect {
         required property Item panel
         property real deformAmount: 0.15
+        Config.screen: root.screen.name
 
-        group: blobGroup
-        x: panel.x + bar.implicitWidth
-        y: panel.y + root.borderThickness
+        visible: panel.visible
+        group: panel.visible ? blobGroup : null
+        x: panel.x + panels.leftMargin
+        y: panel.y + panels.topMargin
         implicitWidth: panel.width
         implicitHeight: panel.height
         radius: Tokens.rounding.extraLarge
