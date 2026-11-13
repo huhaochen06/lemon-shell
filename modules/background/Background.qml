@@ -4,7 +4,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
-import Quickshell.Hyprland
 import Caelestia.Config
 import Caelestia.State
 import qs.components
@@ -21,78 +20,15 @@ Variants {
 
         required property ShellScreen modelData
         readonly property alias wallpaperLoader: wallpaper
-        readonly property int surfaceLayer: (contentItem.Config.background.wallpaperEnabled && !(wallpaper.item && wallpaper.item.weActive)) ? WlrLayer.Background : WlrLayer.Bottom
-
-        // A layer change only takes effect on the surface's next commit. With a
-        // static Wallpaper Engine desktop nothing may redraw for a long time, leaving
-        // this window stuck under linux-wallpaperengine, so force a frame.
-        onSurfaceLayerChanged: Qt.callLater(() => behindClock.Window.window?.update())
-
-        // The forced frame above can't help once linux-wallpaperengine's opaque
-        // surface covers this one: Hyprland stops sending frame callbacks to
-        // occluded surfaces, so a pending background -> bottom layer change may
-        // never be committed, hiding the tiled dim, clock and visualiser under the
-        // renderer. Remap the window when a renderer surface opens so it is
-        // recreated directly on the bottom layer (the `order` layer rule then keeps
-        // it above the renderer).
-        //
-        // Remapping is deferred and debounced: recreating the window while the
-        // session is locked (outputs often DPMS-off) or while the async wallpaper
-        // Loader is mid-load segfaulted quickshell, killing the lock screen.
-        property bool remapPending: false
-
-        function requestRemap(): void {
-            remapPending = true;
-            remapTimer.restart();
-        }
-
-        function tryRemap(): void {
-            if (!remapPending || Visibilities.sessionLocked || wallpaper.status === Loader.Loading) {
-                if (remapPending && !Visibilities.sessionLocked)
-                    remapTimer.restart();
-                return;
-            }
-            remapPending = false;
-            if (surfaceLayer !== WlrLayer.Bottom || !visible)
-                return;
-            visible = false;
-            remapShowTimer.restart();
-        }
-
-        Timer {
-            id: remapTimer
-            interval: 1000
-            onTriggered: win.tryRemap()
-        }
-
-        Timer {
-            id: remapShowTimer
-            interval: 50
-            onTriggered: win.visible = true
-        }
-
-        Connections {
-            target: Hyprland
-
-            function onRawEvent(event: HyprlandEvent): void {
-                if (event.name === "openlayer" && event.data === "linux-wallpaperengine" && win.surfaceLayer === WlrLayer.Bottom)
-                    win.requestRemap();
-            }
-        }
-
-        Connections {
-            target: Visibilities
-
-            function onSessionLockedChanged(): void {
-                if (!Visibilities.sessionLocked && win.remapPending)
-                    remapTimer.restart();
-            }
-        }
 
         screen: modelData
         name: "background"
         WlrLayershell.exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: surfaceLayer
+        // Always on the bottom layer, even for static wallpapers. Switching layers when Wallpaper
+        // Engine starts could leave the change uncommitted once the renderer covered this surface,
+        // and remapping the window to work around that crashed quickshell. The `order` layer rule
+        // keeps this window (tiled dim, clock, visualiser) above linux-wallpaperengine.
+        WlrLayershell.layer: WlrLayer.Bottom
         color: contentItem.Config.background.wallpaperEnabled && !(wallpaper.item && wallpaper.item.weActive) ? "black" : "transparent"
         surfaceFormat.opaque: false
 
@@ -158,7 +94,8 @@ Variants {
                 Component.onCompleted: CUtils.mkdirp(`${Paths.cache}/wallpaper-snapshots`)
 
                 command: {
-                    let cmd = ["linux-wallpaperengine", "--screen-root", win.modelData.name, "--layer", "bottom", "--fullscreen-pause-only-active"];
+                    // pdeathsig kills the renderer if the shell dies, instead of leaving it running
+                    let cmd = ["setpriv", "--pdeathsig", "KILL", "--", "linux-wallpaperengine", "--screen-root", win.modelData.name, "--layer", "bottom", "--fullscreen-pause-only-active"];
                     if (Wallpapers.weSilent) {
                         cmd.push("--silent");
                     } else {
@@ -176,10 +113,14 @@ Variants {
                     return weActive && weDir !== "" && contentItem.Config.background.wallpaperEnabled && !RuntimeState.gameMode;
                 }
 
-                // A new command doesn't apply to an already running process, so restart it
+                // A new command doesn't apply to an already running process, so restart it. Some
+                // scenes ignore SIGTERM, so make sure the old renderer is gone.
                 onCommandChanged: {
                     if (running) {
+                        const pid = processId;
                         running = false;
+                        if (pid > 0)
+                            Quickshell.execDetached(["sh", "-c", '[ "$(cat /proc/$1/comm 2>/dev/null)" = linux-wallpaper ] || exit 0; kill "$1"; sleep 2; kill -9 "$1" 2>/dev/null', "sh", String(pid)]);
                         running = Qt.binding(shouldRun);
                     }
                 }
