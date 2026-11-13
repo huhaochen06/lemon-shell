@@ -1,11 +1,13 @@
 pragma ComponentBehavior: Bound
 
+import "items"
 import QtQuick
 import Quickshell
 import Caelestia.Config
+import Caelestia
 import qs.components.controls
 import qs.services
-import qs.modules.launcher.items
+import qs.utils
 
 PathView {
     id: root
@@ -14,6 +16,7 @@ PathView {
     required property var screenState
     required property var panels
     required property var content
+    required property var contentList
 
     readonly property int itemWidth: Tokens.sizes.launcher.wallpaperWidth * 0.8 + Tokens.padding.medium * 2
 
@@ -23,12 +26,55 @@ PathView {
             return 0;
 
         // Screen width - 4x outer rounding - 2x max side thickness (cause centered)
-        const barMargins = Math.max(Config.border.thickness, panels.bar.implicitWidth);
+        const isBarHorizontal = Config.bar.position === "top" || Config.bar.position === "bottom";
+        const barThickness = isBarHorizontal ? panels.bar.implicitHeight : panels.bar.implicitWidth;
+        const barMargins = Math.max(Config.border.thickness, barThickness);
         let outerMargins = 0;
-        if (panels.popouts.hasCurrent && panels.popouts.currentCenter + panels.popouts.nonAnimHeight / 2 > screen.height - content.implicitHeight - Config.border.thickness * 2)
-            outerMargins = panels.popouts.nonAnimWidth;
-        if ((screenState.utilities || screenState.sidebar) && panels.utilities.implicitWidth > outerMargins)
-            outerMargins = panels.utilities.implicitWidth;
+        if (panels.popouts.hasCurrent) {
+            let overlaps = false;
+            if (isBarHorizontal) {
+                overlaps = true;
+            } else {
+                overlaps = panels.popouts.currentCenter + panels.popouts.nonAnimHeight / 2 > screen.height - content.implicitHeight - Config.border.thickness * 2;
+            }
+
+            if (overlaps) {
+                if (isBarHorizontal) {
+                    const popoutLeft = panels.popouts.currentCenter - panels.popouts.nonAnimWidth / 2;
+                    const popoutRight = panels.popouts.currentCenter + panels.popouts.nonAnimWidth / 2;
+                    const spaceFromEdge = panels.popouts.currentCenter > screen.width / 2 ? screen.width - popoutLeft : popoutRight;
+                    outerMargins = Math.max(outerMargins, spaceFromEdge);
+                } else {
+                    outerMargins = Math.max(outerMargins, panels.popouts.nonAnimWidth);
+                }
+            }
+        }
+
+        if (panels.notifications.implicitHeight > 0) {
+            let overlaps = false;
+            const notifY = isBarHorizontal ? screen.height - panels.bottomMargin - panels.notifications.implicitHeight : panels.notifications.y;
+            const launcherY = isBarHorizontal ? screen.height - panels.bottomMargin - content.implicitHeight : screen.height - content.implicitHeight;
+            if (notifY + panels.notifications.implicitHeight > launcherY) {
+                overlaps = true;
+            }
+
+            if (overlaps) {
+                outerMargins = Math.max(outerMargins, panels.notifications.implicitWidth);
+            }
+        }
+
+        if (screenState.utilities || screenState.sidebar) {
+            let overlaps = false;
+            const sidebarY = screen.height - panels.bottomMargin - panels.sidebar.implicitHeight;
+            const launcherY = isBarHorizontal ? screen.height - panels.bottomMargin - content.implicitHeight : screen.height - content.implicitHeight;
+            if (sidebarY + panels.sidebar.implicitHeight > launcherY) {
+                overlaps = true;
+            }
+
+            if (overlaps) {
+                outerMargins = Math.max(outerMargins, panels.utilities.implicitWidth);
+            }
+        }
         const maxWidth = screen.width - Config.border.rounding * 4 - (barMargins + outerMargins) * 2;
 
         if (maxWidth <= 0)
@@ -49,16 +95,48 @@ PathView {
 
         readonly property string search: root.search.text.split(" ").slice(1).join(" ")
 
-        values: Wallpapers.query(search)
-        onValuesChanged: root.currentIndex = search ? 0 : values.findIndex(w => w.path === Wallpapers.actualCurrent)
+        values: {
+            if (search) {
+                const allWalls = Wallpapers.query(search);
+                const targetCategory = contentList.currentWallpaperTab;
+                const baseDir = Paths.wallsdir;
+                if (targetCategory === "Main") {
+                    return allWalls.filter(w => w.parentDir === baseDir);
+                } else {
+                    return allWalls.filter(w => {
+                        let cat = w.parentDir.slice(baseDir.length + 1);
+                        if (cat.includes("/")) cat = cat.slice(0, cat.indexOf("/"));
+                        return cat === targetCategory;
+                    });
+                }
+            } else {
+                return Wallpapers.grouped[contentList.currentWallpaperTab] || [];
+            }
+        }
+        onValuesChanged: {
+            let idx = search ? 0 : values.findIndex(w => w.path === Wallpapers.actualCurrent);
+            root.currentIndex = Math.max(0, idx);
+            if (values.length > 0 && root.currentIndex >= 0 && root.currentIndex < values.length) {
+                previewTimer.restart();
+            }
+        }
     }
 
     Component.onCompleted: currentIndex = Wallpapers.list.findIndex(w => w.path === Wallpapers.actualCurrent)
     Component.onDestruction: Wallpapers.stopPreview()
 
+    Timer {
+        id: previewTimer
+        interval: 100
+        onTriggered: {
+            if (root.currentItem)
+                Wallpapers.preview((root.currentItem as WallpaperItem).modelData.path);
+        }
+    }
+
     onCurrentItemChanged: {
         if (currentItem)
-            Wallpapers.preview((currentItem as WallpaperItem).modelData.path);
+            previewTimer.restart();
     }
 
     implicitWidth: Math.min(numItems, count) * itemWidth
@@ -96,13 +174,15 @@ PathView {
     }
 
     CustomMouseArea {
+        anchors.fill: parent
+        preventStealing: false
+        acceptedButtons: Qt.NoButton
+
         function onWheel(event: WheelEvent): void {
-            if (event.angleDelta.y > 0)
+            if (event.angleDelta.y > 0 || event.angleDelta.x > 0)
                 root.decrementCurrentIndex();
-            else if (event.angleDelta.y < 0)
+            else if (event.angleDelta.y < 0 || event.angleDelta.x < 0)
                 root.incrementCurrentIndex();
         }
-
-        anchors.fill: parent
     }
 }

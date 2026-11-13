@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Caelestia.Config
+import Caelestia.State
 import Caelestia.Images
 import qs.services
 import qs.utils
@@ -15,6 +16,10 @@ Singleton {
     property bool showPreview
     property string scheme
     property string flavour
+    property string variant
+    property string previewScheme: ""
+    property string previewFlavour: ""
+    property string previewVariant: ""
     readonly property bool light: showPreview ? previewLight : currentLight
     property bool currentLight
     property bool previewLight
@@ -64,11 +69,15 @@ Singleton {
         const scheme = JSON.parse(data);
 
         if (!isPreview) {
-            root.scheme = scheme.name;
-            flavour = scheme.flavour;
-            currentLight = scheme.mode === "light";
+            root.scheme = (scheme.name || "").trim();
+            root.flavour = (scheme.flavour || "").trim();
+            root.variant = (scheme.variant || "").trim();
+            root.currentLight = scheme.mode === "light";
         } else {
-            previewLight = scheme.mode === "light";
+            root.previewScheme = (scheme.name || "").trim();
+            root.previewFlavour = (scheme.flavour || "").trim();
+            root.previewVariant = (scheme.variant || "").trim();
+            root.previewLight = scheme.mode === "light";
         }
 
         for (const [name, colour] of Object.entries(scheme.colours)) {
@@ -84,14 +93,26 @@ Singleton {
 
     function reloadHyprRules(): void {
         let rule, trEnabled;
+        const ignoreAlpha = Math.max(0, transparency.base - 0.03);
+        let messages = [];
         if (Hypr.usingLua) {
-            rule = `eval hl.layer_rule({ match = { namespace = "caelestia-drawers" }, %1 = %2 })`;
+            rule = `eval hl.layer_rule({ match = { namespace = "%1" }, %2 = %3 })`;
             trEnabled = transparency.enabled;
+            messages.push(rule.arg("caelestia-drawers").arg("blur").arg(trEnabled));
+            messages.push(rule.arg("caelestia-drawers").arg("ignore_alpha").arg(ignoreAlpha));
+            messages.push(rule.arg("caelestia-polkit").arg("blur").arg(trEnabled));
+            messages.push(rule.arg("caelestia-polkit").arg("ignore_alpha").arg(ignoreAlpha));
+            messages.push(`eval hl.layer_rule({ match = { namespace = "caelestia-shimeji" }, no_anim = true })`);
         } else {
-            rule = "keyword layerrule %1 %2, match:namespace caelestia-drawers";
+            rule = "keyword layerrule %2 %3, match:namespace %1";
             trEnabled = transparency.enabled ? 1 : 0;
+            messages.push(rule.arg("caelestia-drawers").arg("blur").arg(trEnabled));
+            messages.push(rule.arg("caelestia-drawers").arg("ignore_alpha").arg(ignoreAlpha));
+            messages.push(rule.arg("caelestia-polkit").arg("blur").arg(trEnabled));
+            messages.push(rule.arg("caelestia-polkit").arg("ignore_alpha").arg(ignoreAlpha));
+            messages.push("keyword layerrule noanim, match:namespace caelestia-shimeji");
         }
-        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03))]);
+        Hypr.extras.batchMessage(messages);
     }
 
     function requestReloadHyprRules(): void {
@@ -113,6 +134,17 @@ Singleton {
         target: Hypr
     }
 
+    Connections {
+        target: GlobalConfig.utilities.toasts
+        ignoreUnknownSignals: true
+        function onTransparencyChanged(): void {
+            root.requestReloadHyprRules();
+        }
+        function onTransparencyBaseChanged(): void {
+            root.requestReloadHyprRules();
+        }
+    }
+
     FileView {
         path: `${Paths.state}/scheme.json`
         watchChanges: true
@@ -123,7 +155,7 @@ Singleton {
     ImageAnalyser {
         id: analyser
 
-        source: Wallpapers.current
+        source: Wallpapers.getThumbnailPath(Wallpapers.current)
     }
 
     Timer {
@@ -147,7 +179,7 @@ Singleton {
     }
 
     component Transparency: QtObject {
-        readonly property bool enabled: Tokens.transparency.enabled
+        readonly property bool enabled: Tokens.transparency.enabled && !(RuntimeState.gameMode && GlobalConfig.utilities.gameMode.disableShellTransparency)
         readonly property real base: Math.max(0, Math.min(1, Tokens.transparency.base - (root.light ? 0.1 : 0)))
         readonly property real layers: Math.max(0, Math.min(1, Tokens.transparency.layers))
 

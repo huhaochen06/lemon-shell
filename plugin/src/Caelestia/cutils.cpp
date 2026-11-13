@@ -1,6 +1,8 @@
 #include "cutils.hpp"
 
+#include <qcryptographichash.h>
 #include <qdir.h>
+#include <qfile.h>
 #include <qfileinfo.h>
 #include <qloggingcategory.h>
 #include <qmetaobject.h>
@@ -111,6 +113,33 @@ QString CUtils::toLocalFile(const QUrl& url) {
     }
 
     return url.toLocalFile();
+}
+
+QString CUtils::sha256(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qCWarning(lcCUtils) << "sha256: failed to open" << path;
+        return QString();
+    }
+
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    hash.addData(&file);
+    file.close();
+
+    return QString::fromLatin1(hash.result().toHex());
+}
+
+bool CUtils::fileExists(const QString& path) {
+    return QFileInfo::exists(path);
+}
+
+QString CUtils::readFile(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qCWarning(lcCUtils) << "readFile: failed to open" << path;
+        return QString();
+    }
+    return QString::fromUtf8(file.readAll());
 }
 
 qreal CUtils::clamp(qreal value, qreal min, qreal max) {
@@ -225,6 +254,12 @@ QString CUtils::version() {
 
 QString CUtils::qtVersion() {
     return QStringLiteral(QT_VERSION_STR);
+}
+
+// Creates a directory tree (like QDir::mkpath). Needed because QSettings and
+// friends do not create missing parent directories on their own.
+bool CUtils::mkdirp(const QString& path) {
+    return QDir().mkpath(path);
 }
 
 } // namespace caelestia::shell

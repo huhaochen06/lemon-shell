@@ -1,10 +1,13 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.controls
 import qs.services
 import qs.modules.nexus.common
+import qs.modules.launcher.services
 
 PageBase {
     id: root
@@ -12,37 +15,107 @@ PageBase {
     title: Tr.tr("Colours")
     isSubPage: true
 
-    Item {
+    readonly property list<var> variantData: [
+        { name: "vibrant", label: qsTr("Vibrant") },
+        { name: "tonalspot", label: qsTr("Tonal Spot") },
+        { name: "expressive", label: qsTr("Expressive") },
+        { name: "fidelity", label: qsTr("Fidelity") },
+        { name: "content", label: qsTr("Content") },
+        { name: "fruitsalad", label: qsTr("Fruit Salad") },
+        { name: "rainbow", label: qsTr("Rainbow") },
+        { name: "neutral", label: qsTr("Neutral") },
+        { name: "monochrome", label: qsTr("Monochrome") }
+    ]
+
+    ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
-        implicitHeight: {
-            const f = parent.parent as Flickable;
-            return f.height - f.topMargin - f.bottomMargin;
+        anchors.top: parent.top
+        width: root.cappedWidth
+        spacing: Tokens.spacing.extraSmall / 2
+
+        Variants {
+            id: schemeItems
+            model: Schemes.list
+            MenuItem {
+                required property var modelData
+                text: `${modelData.name} ${modelData.flavour}`
+                onClicked: {
+                    Quickshell.execDetached(["caelestia", "scheme", "set", "-n", modelData.name, "-f", modelData.flavour]);
+                }
+            }
         }
 
-        ColumnLayout {
-            anchors.centerIn: parent
-            spacing: Tokens.padding.extraSmall
-
-            MaterialIcon {
-                Layout.alignment: Qt.AlignHCenter
-                text: "handyman"
-                color: Colours.palette.m3outlineVariant
-                fontStyle: Tokens.font.icon.extraLarge
+        Variants {
+            id: variantItems
+            model: root.variantData
+            MenuItem {
+                required property var modelData
+                text: modelData.label
+                onClicked: {
+                    Quickshell.execDetached(["caelestia", "scheme", "set", "-v", modelData.name]);
+                }
             }
+        }
 
-            StyledText {
-                Layout.alignment: Qt.AlignHCenter
-                text: Tr.tr("Page under construction")
-                color: Colours.palette.m3outlineVariant
-                font: Tokens.font.title.large
-            }
+        SectionHeader {
+            first: true
+            text: qsTr("General")
+        }
 
-            StyledText {
-                Layout.alignment: Qt.AlignHCenter
-                text: Tr.tr("This page will be available in a future update.")
-                color: Colours.palette.m3outlineVariant
-                font: Tokens.font.body.large
+        ToggleRow {
+            first: true
+            last: true
+            Layout.fillWidth: true
+            text: qsTr("Smart colour scheme")
+            subtext: qsTr("Derive theme mode and variant from the wallpaper")
+            checked: GlobalConfig.services.smartScheme
+            onToggled: GlobalConfig.services.smartScheme = checked
+        }
+
+        SectionHeader {
+            text: qsTr("Scheme Settings")
+        }
+
+        SelectRow {
+            first: true
+            label: qsTr("Colour Scheme")
+            subtext: qsTr("Select your base colour scheme style")
+            menuItems: schemeItems.instances
+            active: {
+                const current = Colours.scheme + " " + Colours.flavour;
+                const list = menuItems;
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].text === current)
+                        return list[i];
+                }
+                return null;
             }
+            fallbackText: Colours.scheme + " " + Colours.flavour
+        }
+
+        SelectRow {
+            last: true
+            label: qsTr("Scheme Variant")
+            subtext: qsTr("Select the color distribution algorithm")
+            menuItems: variantItems.instances
+            active: {
+                const current = Colours.variant;
+                let match = null;
+                for (let i = 0; i < root.variantData.length; i++) {
+                    if (root.variantData[i].name === current) {
+                        match = root.variantData[i];
+                        break;
+                    }
+                }
+                if (!match) return null;
+                const list = menuItems;
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].text === match.label)
+                        return list[i];
+                }
+                return null;
+            }
+            fallbackText: Colours.variant
         }
     }
 }

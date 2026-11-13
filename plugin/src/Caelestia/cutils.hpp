@@ -28,8 +28,11 @@ public:
     Q_INVOKABLE static bool copyFile(const QUrl& source, const QUrl& target, bool overwrite = true);
     Q_INVOKABLE static bool deleteFile(const QUrl& path);
     Q_INVOKABLE static QString toLocalFile(const QUrl& url);
+    Q_INVOKABLE static QString sha256(const QString& path);
 
     Q_INVOKABLE static qreal clamp(qreal value, qreal min, qreal max);
+    Q_INVOKABLE static bool fileExists(const QString& path);
+    Q_INVOKABLE static QString readFile(const QString& path);
 
     Q_INVOKABLE static QString enumToString(QObject* target, const QString& property, const QVariant& value = {});
 
@@ -39,6 +42,7 @@ public:
 
     [[nodiscard]] static QString version();
     [[nodiscard]] static QString qtVersion();
+    Q_INVOKABLE static bool mkdirp(const QString& path);
 };
 
 } // namespace caelestia::shell

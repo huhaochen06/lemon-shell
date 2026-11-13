@@ -2,8 +2,10 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
+import qs.services
 import qs.utils
 import qs.modules.launcher
 
@@ -12,6 +14,22 @@ Searcher {
 
     function transformSearch(search: string): string {
         return search.slice(`${GlobalConfig.launcher.actionPrefix}variant `.length);
+    }
+
+    function previewVariant(variant: string): void {
+        const cmd = `import json\nfrom caelestia.utils.scheme import get_scheme\nscheme = get_scheme()\nscheme.variant = "${variant}"\nscheme.update_colours()\nprint(json.dumps({"name": scheme.name, "flavour": scheme.flavour, "mode": scheme.mode, "variant": scheme.variant, "colours": scheme.colours}))`;
+        getPreviewColoursProc.command = ["python3", "-c", cmd];
+        getPreviewColoursProc.running = true;
+    }
+
+    Process {
+        id: getPreviewColoursProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                Colours.load(text, true);
+                Colours.showPreview = true;
+            }
+        }
     }
 
     list: [

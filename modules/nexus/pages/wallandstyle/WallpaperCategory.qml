@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.Models
 import qs.services
+import qs.utils
 import qs.modules.nexus.common
 
 PageBase {
@@ -27,7 +28,23 @@ PageBase {
 
         Repeater {
             model: {
-                const walls = Wallpapers.list.filter(w => Wallpapers.getCategoryFor(w) === root.nState.selectedWallpaperCategory).sort((a, b) => a.name.localeCompare(b.name));
+                const category = root.nState ? root.nState.selectedWallpaperCategory : "";
+                let walls = Wallpapers.list.filter(w => Wallpapers.getCategoryFor(w) === category);
+                const filter = root.nState ? root.nState.wallpaperFilterType : "all";
+
+                walls = walls.filter(w => {
+                    const isVid = Images.isVideo(w.name);
+                    const isGif = w.name.toLowerCase().endsWith(".gif");
+                    const isImg = Images.isValidImageByName(w.name) && !isGif;
+
+                    if (filter === "all") return true;
+                    if (filter === "video") return isVid;
+                    if (filter === "gif") return isGif;
+                    if (filter === "image") return isImg;
+                    return false;
+                });
+
+                walls.sort((a, b) => a.name.localeCompare(b.name));
                 while (walls.length < Config.nexus.wallpapersPerRow)
                     walls.push(null);
                 return walls;
@@ -40,12 +57,11 @@ PageBase {
                 opacity: modelData ? 1 : 0
                 enabled: modelData
 
-                source: String(modelData?.path ?? "")
+                source: modelData ? Wallpapers.getThumbnailPath(modelData.path) : ""
+                realPath: modelData ? modelData.path : ""
                 text: modelData?.name ?? ""
                 onClicked: {
                     Wallpapers.setWallpaper(modelData.path);
-                    root.nState.closeSubPage();
-                    root.nState.closeSubPage();
                 }
             }
         }

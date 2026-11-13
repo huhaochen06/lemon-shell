@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Publish a renderer snapshot as the persistent Hyprpaper desktop wallpaper."""
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
+import time
+
+from PIL import Image
+
+
+def atomic_write(path, content):
+    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as stream:
+        temporary = Path(stream.name)
+        stream.write(content)
+    temporary.replace(path)
+
+
+def main():
+    monitor, source = sys.argv[1:]
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", monitor):
+        raise ValueError("Invalid monitor name")
+    source = Path(source)
+    # The renderer writes PNGs on a worker thread. Wait for a complete image.
+    for attempt in range(50):
+        try:
+            content = source.read_bytes()
+            from io import BytesIO
+            with Image.open(BytesIO(content)) as image:
+                image.verify()
+            break
+        except (OSError, SyntaxError):
+            if attempt == 49:
+                raise
+            time.sleep(0.1)
+
+    state = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "caelestia/wallpaper/desktop-snapshots"
+    config = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "hypr"
+    state.mkdir(parents=True, exist_ok=True)
+    config.mkdir(parents=True, exist_ok=True)
+    with (state / ".lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        manifest = state / "monitors.json"
+        settings = json.loads(manifest.read_text()) if manifest.exists() else {}
+        previous = settings.get(monitor)
+        target = state / (monitor + "-" + hashlib.sha256(content).hexdigest()[:16] + ".png")
+        if not target.exists():
+            atomic_write(target, content)
+        settings[monitor] = str(target)
+        generated = "# Managed by Lemon Shell's set-wallpaper-snapshot helper.\nsplash = false\nipc = true\n"
+        for name, path in settings.items():
+            generated += f"\nwallpaper {{\n    monitor = {name}\n    path = {path}\n    fit_mode = cover\n}}\n"
+        atomic_write(config / "hyprpaper.conf", generated.encode())
+        atomic_write(manifest, (json.dumps(settings, indent=2) + "\n").encode())
+        subprocess.run(["systemctl", "--user", "start", "hyprpaper.service"], check=True)
+        for attempt in range(50):
+            result = subprocess.run(["hyprctl", "hyprpaper", "wallpaper", f"{monitor},{target},cover"], capture_output=True, text=True)
+            if result.returncode == 0:
+                break
+            if attempt == 49:
+                raise RuntimeError(result.stderr or result.stdout)
+            time.sleep(0.1)
+        if previous and previous != str(target) and previous not in settings.values():
+            old = Path(previous)
+            if old.parent == state:
+                old.unlink(missing_ok=True)
+        print(f"Desktop wallpaper set for {monitor}: {target}")
+
+
+if __name__ == "__main__":
+    main()
