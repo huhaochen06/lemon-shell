@@ -170,6 +170,7 @@ CustomMouseArea {
                 text: model.shortName
                 font: Tokens.font.body.builders.small.weight(Font.Medium).build()
                 color: (model.day === 0 || model.day === 6) ? Colours.palette.m3tertiary : Colours.palette.m3onSurface
+                renderType: Text.QtRendering
             }
         }
 
@@ -217,6 +218,7 @@ CustomMouseArea {
                         }
                         opacity: dayItem.model.today || dayItem.model.month === grid.month ? 1 : 0.4
                         font: Tokens.font.body.small
+                        renderType: Text.QtRendering
                     }
                 }
             }

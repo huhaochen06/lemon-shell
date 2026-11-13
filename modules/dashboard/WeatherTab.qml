@@ -30,15 +30,20 @@ Item {
                 spacing: Tokens.spacing.extraSmall
 
                 StyledText {
-                    text: Weather.city || Tr.tr("Loading...")
+                    visible: Config.dashboard.showWeatherLocation !== false
+                    text: Weather.city || qsTr("Loading...")
                     font: Tokens.font.body.builders.large.size(28).weight(Font.DemiBold).build()
                     color: Colours.palette.m3onSurface
                 }
 
                 StyledText {
                     text: Tr.formatDateTime(new Date(), "dddd, MMMM d")
-                    font: Tokens.font.body.small
-                    color: Colours.palette.m3onSurfaceVariant
+                    font: Config.dashboard.showWeatherLocation !== false 
+                        ? Tokens.font.body.small 
+                        : Tokens.font.body.builders.large.size(28).weight(Font.DemiBold).build()
+                    color: Config.dashboard.showWeatherLocation !== false 
+                        ? Colours.palette.m3onSurfaceVariant 
+                        : Colours.palette.m3onSurface
                 }
             }
 

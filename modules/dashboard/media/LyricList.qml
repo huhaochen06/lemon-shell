@@ -15,17 +15,11 @@ import qs.services
 Item {
     id: root
 
-    // Funny binding hack to make lyrics update
-    readonly property var _: {
-        const p = Players.active;
-        if (p)
-            Lyrics.setTrack(p.trackArtist, p.trackTitle, p.trackAlbum, p.length);
-        else
-            Lyrics.clearTrack();
-    }
-
     readonly property real fadeAmount: 0.1
     property list<string> lyricList: Lyrics.lyrics
+
+    Component.onCompleted: Players.acquireLyrics()
+    Component.onDestruction: Players.releaseLyrics()
 
     layer.enabled: true
     layer.effect: Mask {
@@ -272,6 +266,19 @@ Item {
                 blur: 0.4 * lyric.effectScale
             }
 
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (Players.active) {
+                        let time = Lyrics.timeForIndex(index);
+                        if (time >= 0) {
+                            Players.active.position = time + Lyrics.offset + 0.01;
+                        }
+                    }
+                }
+            }
+
             Behavior on effectScale {
                 Anim {
                     type: Anim.SlowEffects
@@ -294,24 +301,6 @@ Item {
 
         Behavior on opacity {
             Anim {
-                type: Anim.SlowEffects
-            }
-        }
-    }
-
-    Behavior on lyricList {
-        SequentialAnimation {
-            Anim {
-                target: lyrics
-                property: "opacity"
-                to: 0
-                type: Anim.DefaultEffects
-            }
-            PropertyAction {}
-            Anim {
-                target: lyrics
-                property: "opacity"
-                to: 1
                 type: Anim.SlowEffects
             }
         }

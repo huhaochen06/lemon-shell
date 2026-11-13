@@ -14,6 +14,7 @@ Item {
     id: root
 
     readonly property alias shape: shape
+    property bool rotate: true
 
     property bool hadPrevious
     property color fallbackColour: Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
@@ -46,8 +47,8 @@ Item {
             color: Qt.alpha(root.fallbackColour, 1)
 
             Anim on rotation {
-                running: true
-                paused: !Players.active?.isPlaying
+                running: root.rotate
+                paused: !root.rotate || !Players.active?.isPlaying
                 from: 360
                 to: 0
                 duration: 23500

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Effects
 import Caelestia.Components
 import Caelestia.Config
 import Caelestia.I18n
@@ -161,7 +162,7 @@ Item {
         }
     }
 
-    AnimatedImage {
+    Item {
         id: bongocat
 
         anchors.top: controls.bottom
@@ -172,10 +173,31 @@ Item {
         anchors.bottomMargin: Tokens.padding.large
         anchors.margins: Tokens.padding.extraLargeIncreased
 
-        playing: Players.active?.isPlaying ?? false
-        speed: Audio.beatTracker.bpm / Config.general.mediaGifSpeedAdjustment
-        source: Paths.absolutePath(Config.paths.mediaGif)
-        asynchronous: true
-        fillMode: AnimatedImage.PreserveAspectFit
+        AnimatedImage {
+            id: gif
+
+            anchors.fill: parent
+
+            playing: Players.active?.isPlaying ?? false
+            speed: Audio.beatTracker.bpm / Config.general.mediaGifSpeedAdjustment // qmllint disable unresolved-type
+            source: Paths.absolutePath(Config.paths.mediaGif)
+            asynchronous: true
+            fillMode: AnimatedImage.PreserveAspectFit
+            visible: !Config.dashboard.useMediaShapes
+        }
+
+        MultiEffect {
+            anchors.fill: gif
+            source: gif
+
+            visible: Config.dashboard.colorizeMediaGif && !Config.dashboard.useMediaShapes
+            colorization: 1
+            colorizationColor: Colours.palette.m3primary
+        }
+
+        MediaShapes {
+            anchors.fill: parent
+            visible: Config.dashboard.useMediaShapes
+        }
     }
 }

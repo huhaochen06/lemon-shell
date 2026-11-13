@@ -7,6 +7,7 @@ import Caelestia.I18n
 import Caelestia.Services
 import qs.components
 import qs.services
+import "../../../components/controls"
 
 Item {
     id: root
@@ -156,20 +157,48 @@ Item {
                     animate: true
                 }
 
-                StyledText {
-                    Layout.maximumWidth: Tokens.sizes.dashboard.mediaTabWidth / 2
-                    // TRANSLATORS: %1/%2/%3 = matched track title, artist and album
-                    text: Tr.tr("Selected candidate: %1 | %2 | %3").arg(Lyrics.selectedCandidate.title).arg(Lyrics.selectedCandidate.artist).arg(Lyrics.selectedCandidate.album)
-                    color: Colours.palette.m3onSurfaceVariant
-                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    animate: true
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.extraSmall
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.maximumWidth: Tokens.sizes.dashboard.mediaTabWidth / 2
+                        text: qsTr("Selected candidate: %1 | %2 | %3").arg(Lyrics.selectedCandidate.title).arg(Lyrics.selectedCandidate.artist).arg(Lyrics.selectedCandidate.album)
+                        color: Colours.palette.m3onSurfaceVariant
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        animate: true
+                    }
+
+                    IconButton {
+                        icon: "refresh"
+                        type: IconButton.Text
+                        onClicked: Lyrics.refresh()
+                    }
                 }
 
-                StyledText {
-                    // TRANSLATORS: %1 = lyric timing offset; ms is the millisecond unit, leave untranslated
-                    text: Tr.tr("Offset: %1 ms").arg(Lyrics.offset)
-                    color: Colours.palette.m3onSurfaceVariant
-                    animate: true
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.extraSmall
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: qsTr("Offset: %1 ms").arg(Math.round(Lyrics.offset))
+                        color: Colours.palette.m3onSurfaceVariant
+                        animate: true
+                    }
+
+                    IconButton {
+                        icon: "remove"
+                        type: IconButton.Text
+                        onClicked: Lyrics.offset -= 100
+                    }
+
+                    IconButton {
+                        icon: "add"
+                        type: IconButton.Text
+                        onClicked: Lyrics.offset += 100
+                    }
                 }
             }
 
