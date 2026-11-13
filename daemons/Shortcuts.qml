@@ -92,6 +92,7 @@ Scope {
             if (root.hasFullscreen || !Config.sidebar.enabled)
                 return;
             const screenState = ShellState.forActive();
+            Visibilities.initialSidebarTab = "notifications";
             screenState.sidebar = !screenState.sidebar;
         }
     }
@@ -109,6 +110,89 @@ Scope {
         }
     }
 
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "emoji"
+        description: "Open emoji picker"
+        onPressed: {
+            if (root.hasFullscreen)
+                return;
+            Visibilities.launcherInitialSearch = `${GlobalConfig.launcher.actionPrefix}emoji `;
+            const visibilities = Visibilities.getForActive();
+            visibilities.launcher = true;
+        }
+    }
+
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "clipboard"
+        description: "Open clipboard history"
+        onPressed: {
+            if (root.hasFullscreen)
+                return;
+            Visibilities.launcherInitialSearch = `${GlobalConfig.launcher.actionPrefix}clipboard `;
+            const visibilities = Visibilities.getForActive();
+            visibilities.launcher = true;
+        }
+    }
+
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "windowSwitcher"
+        description: "Open window switcher"
+        onPressed: {
+            if (root.hasFullscreen)
+                return;
+            Visibilities.launcherInitialSearch = `${GlobalConfig.launcher.actionPrefix}windows `;
+            const visibilities = Visibilities.getForActive();
+            visibilities.launcher = true;
+        }
+    }
+
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "wallpaper"
+        description: "Open wallpaper picker"
+        onPressed: {
+            if (root.hasFullscreen)
+                return;
+            Visibilities.launcherInitialSearch = `${GlobalConfig.launcher.actionPrefix}wallpaper `;
+            const visibilities = Visibilities.getForActive();
+            visibilities.launcher = true;
+        }
+    }
+
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "keybinds"
+        description: "Open keybinds list"
+        onPressed: {
+            if (root.hasFullscreen)
+                return;
+            Visibilities.launcherInitialSearch = `${GlobalConfig.launcher.actionPrefix}keybinds `;
+            const visibilities = Visibilities.getForActive();
+            visibilities.launcher = true;
+        }
+    }
+
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "workspaceOverview"
+        description: "Toggle workspace overview"
+        onPressed: {
+            if (root.hasFullscreen)
+                return;
+            const screenState = ShellState.forActive();
+            screenState.workspaceDrawer = !screenState.workspaceDrawer;
+        }
+    }
+
     IpcHandler {
         function toggle(drawer: string): void {
             if (list().split("\n").includes(drawer)) {
@@ -116,6 +200,23 @@ Scope {
                     return;
                 const screenState = ShellState.forActive();
                 screenState[drawer] = !screenState[drawer];
+            } else {
+                console.warn(lc, `Drawer "${drawer}" does not exist`);
+            }
+        }
+
+        function toggleTab(drawer: string, tab: string): void {
+            if (list().split("\n").includes(drawer)) {
+                if (root.hasFullscreen && ["launcher", "session", "dashboard"].includes(drawer))
+                    return;
+                if (drawer === "sidebar" && tab !== "") {
+                    Visibilities.initialSidebarTab = tab;
+                    const visibilities = Visibilities.getForActive();
+                    visibilities.sidebar = true;
+                    return;
+                }
+                const visibilities = Visibilities.getForActive();
+                visibilities[drawer] = !visibilities[drawer];
             } else {
                 console.warn(lc, `Drawer "${drawer}" does not exist`);
             }
@@ -142,6 +243,26 @@ Scope {
         }
 
         target: "nexus"
+    }
+
+    IpcHandler {
+        function openEmoji(): void {
+            if (root.hasFullscreen)
+                return;
+            Visibilities.launcherInitialSearch = `${GlobalConfig.launcher.actionPrefix}emoji `;
+            const visibilities = Visibilities.getForActive();
+            visibilities.launcher = true;
+        }
+
+        function openClipboard(): void {
+            if (root.hasFullscreen)
+                return;
+            Visibilities.launcherInitialSearch = `${GlobalConfig.launcher.actionPrefix}clipboard `;
+            const visibilities = Visibilities.getForActive();
+            visibilities.launcher = true;
+        }
+
+        target: "launcher"
     }
 
     IpcHandler {

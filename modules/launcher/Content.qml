@@ -25,8 +25,8 @@ Item {
     Item {
         id: listWrapper
 
-        implicitWidth: list.width
-        implicitHeight: list.height + root.padding
+        implicitWidth: list.implicitWidth
+        implicitHeight: list.implicitHeight + root.padding
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: search.top
@@ -72,6 +72,8 @@ Item {
                 } else if (text.startsWith(GlobalConfig.launcher.actionPrefix)) {
                     if (text.startsWith(`${GlobalConfig.launcher.actionPrefix}calc `))
                         currentItem.onClicked();
+                    else if (text.startsWith(`${GlobalConfig.launcher.actionPrefix}emoji `) || text.startsWith(`${GlobalConfig.launcher.actionPrefix}clipboard `) || text.startsWith(`${GlobalConfig.launcher.actionPrefix}windows `) || text.startsWith(`${GlobalConfig.launcher.actionPrefix}keybinds `) || text.startsWith(`${GlobalConfig.launcher.actionPrefix}animations `))
+                        currentItem.clicked();
                     else
                         currentItem.modelData.onClicked(list.currentList);
                 } else {
@@ -107,12 +109,24 @@ Item {
             }
         }
 
-        Component.onCompleted: forceActiveFocus()
+        Component.onCompleted: {
+            if (Visibilities.launcherInitialSearch) {
+                text = Visibilities.launcherInitialSearch;
+                Visibilities.launcherInitialSearch = "";
+            }
+            forceActiveFocus();
+        }
 
         Connections {
             function onLauncherChanged(): void {
-                if (!root.screenState.launcher)
+                if (root.screenState.launcher) {
+                    if (Visibilities.launcherInitialSearch) {
+                        search.text = Visibilities.launcherInitialSearch;
+                        Visibilities.launcherInitialSearch = "";
+                    }
+                } else {
                     search.text = "";
+                }
             }
 
             function onSessionChanged(): void {

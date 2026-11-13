@@ -16,7 +16,7 @@ Searcher {
         return search.slice(GlobalConfig.launcher.actionPrefix.length);
     }
 
-    list: variants.instances
+    list: [...variants.instances, timerAction]
     useFuzzy: GlobalConfig.launcher.useFuzzy.actions
 
     Variants {
@@ -28,6 +28,17 @@ Searcher {
         }
 
         Action {}
+    }
+
+    // Built in: opens ">timer" (see AppList.timerResults)
+    readonly property QtObject timerAction: QtObject {
+        readonly property string name: qsTr("Timer")
+        readonly property string desc: qsTr("Start a timer or stopwatch in the dynamic island")
+        readonly property string icon: "timer"
+
+        function onClicked(list: AppList): void {
+            list.search.text = `${GlobalConfig.launcher.actionPrefix}timer `;
+        }
     }
 
     component Action: QtObject {

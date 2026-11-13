@@ -51,7 +51,12 @@ class LauncherConfig : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(bool, vimKeybinds, false)
     CONFIG_GLOBAL_PROPERTY(QStringList, favouriteApps, {})
     CONFIG_GLOBAL_PROPERTY(QStringList, hiddenApps, {})
-    CONFIG_GLOBAL_SUBOBJECT(LauncherUseFuzzy, useFuzzy)
+    CONFIG_GLOBAL_PROPERTY(bool, emoji, false)
+    CONFIG_GLOBAL_PROPERTY(bool, clipboard, false)
+    CONFIG_GLOBAL_PROPERTY(bool, windowSwitcherActiveWorkspaceOnly, true)
+    CONFIG_GLOBAL_PROPERTY(QStringList, favouriteEmojis, {})
+    CONFIG_GLOBAL_PROPERTY(QStringList, favouriteClips, {})
+    CONFIG_SUBOBJECT(LauncherUseFuzzy, useFuzzy)
     CONFIG_GLOBAL_LIST(LauncherActionList, actions,
         DEFAULT_ARG({
             vmap({
@@ -134,6 +139,37 @@ class LauncherConfig : public settings::ObjectNode {
                 { u"icon"_s, u"settings"_s },
                 { u"description"_s, mark(u"Configure the shell"_s) },
                 { u"command"_s, QStringList{ u"caelestia"_s, u"shell"_s, u"nexus"_s, u"open"_s } },
+            }),
+            vmap({
+                { u"name"_s, u"Emoji"_s },
+                { u"icon"_s, u"emoji_emotions"_s },
+                { u"description"_s, u"Pick an emoji to copy"_s },
+                { u"command"_s, QStringList{ u"autocomplete"_s, u"emoji"_s } },
+            }),
+            vmap({
+                { u"name"_s, u"Clipboard"_s },
+                { u"icon"_s, u"content_paste"_s },
+                { u"description"_s, u"View clipboard history"_s },
+                { u"command"_s, QStringList{ u"autocomplete"_s, u"clipboard"_s } },
+            }),
+            vmap({
+                { u"name"_s, u"Windows"_s },
+                { u"icon"_s, u"apps"_s },
+                { u"description"_s, u"Switch to another window"_s },
+                { u"command"_s, QStringList{ u"autocomplete"_s, u"windows"_s } },
+                { u"enabled"_s, true },
+            }),
+            vmap({
+                { u"name"_s, u"Keybinds"_s },
+                { u"icon"_s, u"keyboard"_s },
+                { u"description"_s, u"View all keybinds"_s },
+                { u"command"_s, QStringList{ u"autocomplete"_s, u"keybinds"_s } },
+            }),
+            vmap({
+                { u"name"_s, u"Animations"_s },
+                { u"icon"_s, u"animation"_s },
+                { u"description"_s, u"Switch your animation style"_s },
+                { u"command"_s, QStringList{ u"autocomplete"_s, u"animations"_s } },
             }),
         }))
 };

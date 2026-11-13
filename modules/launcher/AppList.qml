@@ -29,7 +29,10 @@ StyledListView {
     function stateForText(text: string): string {
         const prefix = GlobalConfig.launcher.actionPrefix;
         if (text.startsWith(prefix)) {
-            for (const action of ["calc", "scheme", "variant"])
+            if (text === `${prefix}timer` || text.startsWith(`${prefix}timer `))
+                return "timer";
+            const actionPrefixes = ["calc", "scheme", "variant", "emoji", "clipboard", "windows"];
+            for (const action of actionPrefixes)
                 if (text.startsWith(`${prefix}${action} `))
                     return action;
 
@@ -37,6 +40,48 @@ StyledListView {
         }
 
         return "apps";
+    }
+
+    // ">timer 25m tea": start a 25 minute timer called "tea"; ">timer stopwatch"; controls for a running one.
+    // Shown in the dynamic island (services/Timers.qml, modules/island/TimerActivity.qml).
+    function timerResults(query: string): var {
+        const item = (name, desc, icon, action) => ({
+                name: name,
+                desc: desc,
+                icon: icon,
+                onClicked: list => {
+                    list.screenState.launcher = false;
+                    action();
+                }
+            });
+        const results = [];
+
+        // Longest leading part that parses as a duration; the rest is the label
+        const parts = query.split(/\s+/).filter(p => p);
+        for (let i = parts.length; i > 0; i--) {
+            const seconds = Timers.parseDuration(parts.slice(0, i).join(" "));
+            if (seconds > 0) {
+                const label = parts.slice(i).join(" ");
+                results.push(item(label ? qsTr("Start %1 timer: %2").arg(Timers.describe(seconds)).arg(label) : qsTr("Start %1 timer").arg(Timers.describe(seconds)), qsTr("Counts down in the dynamic island"), "timer", () => Timers.startTimer(seconds, label)));
+                break;
+            }
+        }
+
+        if (Timers.running) {
+            results.push(item(Timers.paused ? qsTr("Resume %1").arg(Timers.mode) : qsTr("Pause %1").arg(Timers.mode), Timers.timeStr, Timers.paused ? "play_arrow" : "pause", () => Timers.togglePause()));
+            if (Timers.mode === "timer")
+                results.push(item(qsTr("Add a minute"), Timers.timeStr, "more_time", () => Timers.addSeconds(60)));
+            results.push(item(qsTr("Stop %1").arg(Timers.mode), Timers.timeStr, "stop", () => Timers.stop()));
+        }
+
+        if (!query || "stopwatch".startsWith(parts[0]?.toLowerCase() ?? ""))
+            results.push(item(qsTr("Start stopwatch"), qsTr("Counts up in the dynamic island"), "timer_play", () => Timers.startStopwatch(parts.slice(1).join(" "))));
+
+        if (!query)
+            for (const preset of [60, 300, 600, 1500])
+                results.push(item(qsTr("Start %1 timer").arg(Timers.describe(preset)), qsTr("Or type a length, e.g. %1timer 1h30m").arg(GlobalConfig.launcher.actionPrefix), "timer", () => Timers.startTimer(preset, "")));
+
+        return results;
     }
 
     function resultsForText(text: string): var {
@@ -49,6 +94,28 @@ StyledListView {
             return Schemes.query(text);
         case "variant":
             return M3Variants.query(text);
+        case "emoji": {
+            const prefix = GlobalConfig.launcher.actionPrefix;
+            const queryText = text.slice((prefix + "emoji ").length).toLowerCase();
+            if (!queryText)
+                return Emojis.getSortedItems();
+            return Emojis.items.filter(function (item) {
+                return item.name.toLowerCase().includes(queryText);
+            });
+        }
+        case "clipboard": {
+            const prefix = GlobalConfig.launcher.actionPrefix;
+            const queryText = text.slice((prefix + "clipboard ").length).toLowerCase();
+            if (!queryText)
+                return Clipboard.getSortedItems();
+            return Clipboard.items.filter(function (item) {
+                return item.preview.toLowerCase().includes(queryText);
+            });
+        }
+        case "windows":
+            return Windows.items;
+        case "timer":
+            return root.timerResults(text.slice((GlobalConfig.launcher.actionPrefix + "timer").length).trim());
         default:
             return Apps.search(text);
         }
@@ -61,7 +128,7 @@ StyledListView {
 
     spacing: Tokens.spacing.small
     orientation: Qt.Vertical
-    implicitHeight: (Tokens.sizes.launcher.itemHeight + spacing) * Math.min(Config.launcher.maxShown, count) - spacing
+    implicitHeight: Math.max(0, (Tokens.sizes.launcher.itemHeight + spacing) * Math.min(Config.launcher.maxShown, count) - spacing)
 
     preferredHighlightBegin: 0
     preferredHighlightEnd: height
@@ -87,6 +154,41 @@ StyledListView {
     onStateChanged: {
         if (state === "scheme" || state === "variant")
             Schemes.reload();
+        if (state === "emoji")
+            Emojis.reload();
+        if (state === "clipboard")
+            Clipboard.reload();
+            
+        if (state !== "scheme" && state !== "variant") {
+            Colours.showPreview = false;
+        }
+    }
+
+    onCurrentItemChanged: {
+        if (state === "scheme" || state === "variant") {
+            if (currentItem && currentItem.modelData)
+                previewTimer.restart();
+        }
+    }
+
+    Component.onDestruction: {
+        Colours.showPreview = false;
+    }
+
+    Timer {
+        id: previewTimer
+        interval: 100
+        onTriggered: {
+            if (!root.currentItem || !root.currentItem.modelData) return;
+            if (root.state === "scheme") {
+                const schemeData = root.currentItem.modelData;
+                Colours.load(JSON.stringify({ name: schemeData.name, flavour: schemeData.flavour, variant: Colours.variant, mode: Colours.light ? "light" : "dark", colours: schemeData.colours }), true);
+                Colours.showPreview = true;
+            } else if (root.state === "variant") {
+                const variantData = root.currentItem.modelData;
+                M3Variants.previewVariant(variantData.variant);
+            }
+        }
     }
 
     Component.onCompleted: displayText = search.text
@@ -125,6 +227,34 @@ StyledListView {
 
             PropertyChanges {
                 root.delegate: variantItem
+            }
+        },
+        State {
+            name: "emoji"
+
+            PropertyChanges {
+                root.delegate: emojiItem
+            }
+        },
+        State {
+            name: "clipboard"
+
+            PropertyChanges {
+                root.delegate: clipItem
+            }
+        },
+        State {
+            name: "windows"
+
+            PropertyChanges {
+                root.delegate: windowsItem
+            }
+        },
+        State {
+            name: "timer"
+
+            PropertyChanges {
+                root.delegate: actionItem
             }
         }
     ]
@@ -283,6 +413,30 @@ StyledListView {
         id: variantItem
 
         VariantItem {
+            list: root
+        }
+    }
+
+    Component {
+        id: emojiItem
+
+        EmojiItem {
+            list: root
+        }
+    }
+
+    Component {
+        id: clipItem
+
+        ClipItem {
+            list: root
+        }
+    }
+
+    Component {
+        id: windowsItem
+
+        WindowSwitcherItem {
             list: root
         }
     }
