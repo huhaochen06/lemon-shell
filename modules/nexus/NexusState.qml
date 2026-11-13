@@ -9,8 +9,11 @@ QtObject {
     property int currentPageIdx
     property list<int> subPageIdxStack
     property bool searchOpen
+    property bool justUnlockedDevMode: false
+    property string targetScreen: ""
 
     property string selectedWallpaperCategory
+    property string wallpaperFilterType: "all"
     property BluetoothDevice selectedBtDevice
     property DesktopEntry selectedApp
     property int editingVpnIndex: -1

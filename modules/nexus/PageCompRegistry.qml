@@ -16,6 +16,8 @@ import qs.modules.nexus.pages.panels
 import qs.modules.nexus.pages.services
 import qs.modules.nexus.pages.wallandstyle
 import qs.modules.nexus.pages.panels.taskbar
+import qs.modules.nexus.pages.background
+import qs.modules.nexus.pages.tokens
 
 QtObject {
     id: root
@@ -36,6 +38,43 @@ QtObject {
                 }
                 Component {
                     ColourSelect {}
+                }
+                Component {
+                    WallhavenPage {}
+                }
+                Component {
+                    WallpaperEnginePage {}
+                }
+            }
+        },
+        Component {
+            // Shimeji
+            StackPage {
+                Component {
+                    ShimejiPage {}
+                }
+            }
+        },
+        Component {
+            // Shell Tokens
+            StackPage {
+                Component {
+                    TokensPage {}
+                }
+                Component {
+                    RoundingSpacingPage {}
+                }
+                Component {
+                    FontSizesPage {}
+                }
+                Component {
+                    BarDashboardPage {}
+                }
+                Component {
+                    WindowLockPage {}
+                }
+                Component {
+                    ShellElementsPage {}
                 }
             }
         },
@@ -126,6 +165,9 @@ QtObject {
 
                 // Taskbar component sub-pages
                 Component {
+                    BarComponents {}
+                }
+                Component {
                     BarWorkspaces {}
                 }
                 Component {
@@ -139,6 +181,14 @@ QtObject {
                 }
                 Component {
                     BarClock {}
+                }
+                Component {
+                    BarDock {}
+                }
+
+                // Index 13
+                Component {
+                    IslandPanel {}
                 }
             }
         },
@@ -165,6 +215,18 @@ QtObject {
                 Component {
                     NotificationsPage {}
                 }
+                Component {
+                    GameModePage {}
+                }
+                Component {
+                    GameModeTargetsPage {}
+                }
+                Component {
+                    PipPage {}
+                }
+                Component {
+                    QuickSharePage {}
+                }
             }
         },
         Component {
@@ -175,6 +237,7 @@ QtObject {
                 }
             }
         },
+
 
         // About
         Component {

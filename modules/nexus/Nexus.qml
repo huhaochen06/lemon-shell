@@ -16,6 +16,7 @@ Item {
 
         onClose: root.close()
     }
+    Config.screen: nState.targetScreen
     property color blobColour: Colours.tPalette.m3surfaceContainerLow
 
     signal close

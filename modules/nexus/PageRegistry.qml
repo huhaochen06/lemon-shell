@@ -14,6 +14,19 @@ QtObject {
             description: Tr.tr("Wallpaper, fonts, colours"),
             category: "appearance"
         },
+        {
+            label: qsTr("Shimeji"),
+            icon: "pets",
+            description: qsTr("Desktop pets"),
+            category: "appearance"
+        },
+        {
+            label: qsTr("Shell Tokens"),
+            icon: "tune",
+            description: qsTr("Modify interface spacing, rounding, and sizing"),
+            category: "appearance",
+            developerOnly: true
+        },
 
         // Connectivity
         // TODO
@@ -71,7 +84,7 @@ QtObject {
             category: "shell"
         },
         {
-            label: Tr.tr("Services"),
+            label: qsTr("Services"),
             icon: "build",
             description: Tr.tr("Poll intervals, lyrics backend"),
             category: "shell"

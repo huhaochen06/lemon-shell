@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.components
 import qs.components.effects
+import QtQuick.Effects
 
 StyledFlickable {
     id: root

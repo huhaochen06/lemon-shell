@@ -31,7 +31,23 @@ VerticalFadeFlickable {
         Repeater {
             id: list
 
-            model: PageRegistry.pages
+            model: {
+                const arr = [];
+                for (let i = 0; i < PageRegistry.pages.length; i++) {
+                    const page = PageRegistry.pages[i];
+                    if (!page.developerOnly || GlobalConfig.general.developerMode) {
+                        arr.push({
+                            originalIndex: i,
+                            label: page.label,
+                            icon: page.icon,
+                            description: page.description,
+                            category: page.category,
+                            noFill: page.noFill ?? false
+                        });
+                    }
+                }
+                return arr;
+            }
 
             StyledRect {
                 id: item
@@ -39,23 +55,76 @@ VerticalFadeFlickable {
                 required property var modelData
                 required property int index
 
-                readonly property bool isCurrentPage: index === root.nState.currentPageIdx
-                readonly property bool isCategoryStart: index === 0 || PageRegistry.pages[index - 1].category !== modelData.category
-                readonly property bool isCategoryEnd: index === list.model.length - 1 || PageRegistry.pages[index + 1].category !== modelData.category
+                clip: true
+
+                readonly property bool isCurrentPage: modelData.originalIndex === root.nState.currentPageIdx
+                readonly property bool isCategoryStart: index === 0 || list.model[index - 1].category !== modelData.category
+                readonly property bool isCategoryEnd: index === list.model.length - 1 || list.model[index + 1].category !== modelData.category
+
+                property real animHeight: 1
+                property real animSlide: 1
+                property bool isUnlocking: false
+
+                Component.onCompleted: {
+                    if (modelData.originalIndex === 2 && root.nState.justUnlockedDevMode) {
+                        animHeight = 0;
+                        animSlide = 0;
+                        heightAnim.start();
+                        slideAnim.start();
+                        isUnlocking = true;
+                        unlockTimer.start();
+                    } else if (modelData.originalIndex === 1 && root.nState.justUnlockedDevMode) {
+                        isUnlocking = true;
+                        unlockTimer.start();
+                    }
+                }
+
+                Timer {
+                    id: unlockTimer
+                    interval: 20
+                    onTriggered: item.isUnlocking = false
+                }
+
+                NumberAnimation {
+                    id: heightAnim
+                    target: item
+                    property: "animHeight"
+                    to: 1
+                    duration: 320
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.1
+                    onFinished: root.nState.justUnlockedDevMode = false
+                }
+
+                NumberAnimation {
+                    id: slideAnim
+                    target: item
+                    property: "animSlide"
+                    to: 1
+                    duration: 320
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.2
+                }
 
                 Layout.fillWidth: true
-                Layout.topMargin: index !== 0 && isCategoryStart ? Tokens.spacing.medium : 0
+                Layout.topMargin: (index !== 0 && isCategoryStart ? Tokens.spacing.medium : 0) * animHeight
                 implicitHeight: {
                     const h = layout.implicitHeight + layout.anchors.margins * 2;
-                    return h % 2 === 0 ? h : h + 1;
+                    const targetH = h % 2 === 0 ? h : h + 1;
+                    return targetH * animHeight;
+                }
+                opacity: modelData.originalIndex === 2 ? animSlide : 1.0
+
+                transform: Translate {
+                    y: modelData.originalIndex === 2 ? (1 - item.animSlide) * -40 : 0
                 }
 
                 color: isCurrentPage ? Colours.palette.m3secondaryContainer : Colours.layer(Colours.palette.m3surfaceContainerHigh, 2)
 
-                topLeftRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : isCategoryStart ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-                topRightRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : isCategoryStart ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-                bottomLeftRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : isCategoryEnd ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-                bottomRightRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : isCategoryEnd ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+                topLeftRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : (isUnlocking && modelData.originalIndex === 2) ? Tokens.rounding.extraLarge : isCategoryStart ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+                topRightRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : (isUnlocking && modelData.originalIndex === 2) ? Tokens.rounding.extraLarge : isCategoryStart ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+                bottomLeftRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : (isUnlocking && modelData.originalIndex === 1) ? Tokens.rounding.extraLarge : isCategoryEnd ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+                bottomRightRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : (isUnlocking && modelData.originalIndex === 1) ? Tokens.rounding.extraLarge : isCategoryEnd ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
 
                 RadiusBehavior on topLeftRadius {}
                 RadiusBehavior on topRightRadius {}
@@ -71,15 +140,19 @@ VerticalFadeFlickable {
                     bottomLeftRadius: parent.bottomLeftRadius
                     bottomRightRadius: parent.bottomRightRadius
 
-                    onClicked: root.nState.currentPageIdx = item.index
+                    onClicked: root.nState.currentPageIdx = item.modelData.originalIndex
                 }
 
                 RowLayout {
                     id: layout
 
-                    anchors.fill: parent
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
                     anchors.margins: Tokens.padding.large
                     spacing: Tokens.spacing.medium
+
+                    opacity: modelData.originalIndex === 2 ? item.animSlide : 1.0
 
                     StyledRect {
                         Layout.fillHeight: true

@@ -76,6 +76,10 @@ class FontSizeTokens : public settings::ObjectNode {
     CONFIG_PROPERTY(int, larger, 15)
     CONFIG_PROPERTY(int, large, 18)
     CONFIG_PROPERTY(int, extraLarge, 28)
+    // Monospace font sizes
+    CONFIG_PROPERTY(int, monoSmall, 12)
+    CONFIG_PROPERTY(int, monoMedium, 14)
+    CONFIG_PROPERTY(int, monoLarge, 16)
 };
 
 class AnimDurationTokens : public settings::ObjectNode {
@@ -152,6 +156,8 @@ class LauncherTokens : public settings::ObjectNode {
     CONFIG_PROPERTY(int, itemHeight, 57)
     CONFIG_PROPERTY(int, wallpaperWidth, 280)
     CONFIG_PROPERTY(int, wallpaperHeight, 200)
+    CONFIG_PROPERTY(int, windowSwitcherWidth, 300)
+    CONFIG_PROPERTY(int, windowSwitcherHeight, 220)
 };
 
 class NotifsTokens : public settings::ObjectNode {

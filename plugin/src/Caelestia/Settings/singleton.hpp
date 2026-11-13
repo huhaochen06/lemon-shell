@@ -41,6 +41,8 @@
     }                                                                                                                  \
                                                                                                                        \
     Root* Type::forScreen(const QString& screen) {                                                                     \
+        if (screen.isEmpty())                                                                                          \
+            return this; /* "Global" target: use the global root, not a phantom monitor layer */                       \
         bool created;                                                                                                  \
         auto* const layer = m_layers.get(screen, this, &created);                                                      \
         if (created)                                                                                                   \

@@ -14,7 +14,9 @@ ColumnLayout {
 
     required property string title
     required property NexusState nState
+    readonly property var targetConfig: nState.targetScreen === "" ? GlobalConfig : GlobalConfig.forScreen(nState.targetScreen)
     property bool isSubPage
+    property bool scrollable: true
     readonly property int cappedWidth: Math.min(Tokens.sizes.nexus.maxContentWidth, width)
     readonly property alias flickable: flickable
 
@@ -61,6 +63,7 @@ ColumnLayout {
     VerticalFadeFlickable {
         id: flickable
 
+        interactive: root.scrollable
         Layout.fillWidth: true
         Layout.fillHeight: true
 
@@ -68,7 +71,7 @@ ColumnLayout {
         topMargin: Tokens.padding.large
         bottomMargin: Tokens.padding.extraLarge
 
-        contentHeight: root.contentChild?.implicitHeight ?? 0
+        contentHeight: root.scrollable ? (root.contentChild?.implicitHeight ?? 0) : height
         contentItem.children: [root.contentChild]
 
         TapHandler {

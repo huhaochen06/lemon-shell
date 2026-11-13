@@ -18,6 +18,10 @@ public:
 
     void load();
 
+    // Explicit save for QML callers; writes are otherwise auto-saved via the
+    // change batcher.
+    Q_INVOKABLE void save();
+
 signals:
     void diagnosticsChanged();
     void treeLoaded(caelestia::shell::settings::RootNode* self);

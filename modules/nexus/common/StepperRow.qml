@@ -11,6 +11,15 @@ import qs.modules.nexus.common
 ConnectedRect {
     id: root
 
+    property bool showDelete: false
+    signal deleted()
+
+    property bool showReset: false
+    signal reset()
+
+    property var configNode
+    property string propertyName: ""
+
     property alias label: label.text
     property string subtext
     property real value
@@ -36,12 +45,41 @@ ConnectedRect {
             Layout.fillWidth: true
             spacing: 0
 
-            StyledText {
-                id: label
-
+            RowLayout {
                 Layout.fillWidth: true
-                font: Tokens.font.body.small
-                elide: Text.ElideRight
+                spacing: Tokens.spacing.small
+
+                StyledText {
+                    id: label
+                    text: root.label
+                    font: Tokens.font.body.small
+                    elide: Text.ElideRight
+                }
+
+                IconButton {
+                    icon: "delete"
+                    type: IconButton.Text
+                    font: Tokens.font.icon.small
+                    visible: root.showDelete
+                    onClicked: root.deleted()
+                }
+
+                IconButton {
+                    icon: "restart_alt"
+                    type: IconButton.Text
+                    font: Tokens.font.icon.small
+                    visible: root.showReset
+                    onClicked: root.reset()
+                }
+
+                PerMonitorStatusChip {
+                    configNode: root.configNode
+                    propertyName: root.propertyName
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
             }
 
             StyledText {

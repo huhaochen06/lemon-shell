@@ -26,6 +26,7 @@ Slider {
     property real filledWidth
 
     signal interaction(v: real)
+    signal released(v: real)
 
     Component.onCompleted: filledWidth = Qt.binding(() => (width - handle.implicitWidth - handle.anchors.leftMargin) * pos)
 
@@ -180,6 +181,7 @@ Slider {
             const clickPos = e.x / width;
             const finalPos = mouse.dragMovement !== 0 ? posBinding.value : CUtils.clamp(clickPos, 0, 1);
             root.interaction(finalPos);
+            root.released(finalPos);
             widthBehavior.enabled = true;
             dragMovement = 0;
         }

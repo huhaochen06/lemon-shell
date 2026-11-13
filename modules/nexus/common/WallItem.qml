@@ -2,8 +2,8 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Caelestia.Config
-import Caelestia.Multimedia
 import qs.components
 import qs.components.controls
 import qs.services
@@ -11,11 +11,12 @@ import qs.services
 Item {
     id: root
 
-    property alias source: img.source
+    property string source: ""
     property alias text: label.text
     property alias radius: imgWrapper.radius
     property alias imgHeight: imgWrapper.implicitHeight
     property bool fillLabel: true
+    property string realPath: ""
 
     signal clicked
 
@@ -39,7 +40,7 @@ Item {
             Loader {
                 anchors.centerIn: parent
 
-                opacity: img.ready ? 0 : 1
+                opacity: img.status === Image.Ready ? 0 : 1
                 active: opacity > 0
 
                 sourceComponent: StyledRect {
@@ -65,11 +66,36 @@ Item {
                 }
             }
 
-            Visual {
+            Image {
                 id: img
 
                 anchors.fill: parent
-                playing: stateLayer.containsMouse
+                asynchronous: true
+                fillMode: Image.PreserveAspectCrop
+
+                source: {
+                    const target = root.realPath || root.source;
+                    if (!target) return "";
+
+                    if (Wallpapers.isVideo(target)) {
+                        const thumb = Wallpapers.getWallpaperThumb(target, Wallpapers.cacheBuster);
+                        return (typeof thumb === "string" && thumb !== "undefined") ? thumb : "";
+                    }
+                    return root.source || target;
+                }
+
+                sourceSize: {
+                    const dpr = (QsWindow.window as QsWindow)?.devicePixelRatio ?? 1;
+                    return Qt.size(width * dpr, height * dpr);
+                }
+                retainWhileLoading: true
+                opacity: status === Image.Ready ? 1 : 0
+
+                Behavior on opacity {
+                    Anim {
+                        type: Anim.SlowEffects
+                    }
+                }
             }
         }
 
@@ -86,8 +112,6 @@ Item {
     }
 
     StateLayer {
-        id: stateLayer
-
         anchors.bottomMargin: root.fillLabel ? 0 : layout.implicitHeight - imgWrapper.implicitHeight
         onClicked: root.clicked()
     }

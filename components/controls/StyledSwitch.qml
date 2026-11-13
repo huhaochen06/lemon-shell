@@ -16,6 +16,10 @@ Switch {
     implicitWidth: implicitIndicatorWidth
     implicitHeight: implicitIndicatorHeight
 
+    onToggled: {
+        Audio.playEffectTick();
+    }
+
     indicator: StyledRect {
         radius: Tokens.rounding.full
         color: {

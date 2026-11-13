@@ -11,6 +11,8 @@ ConnectedRect {
 
     property alias label: label.text
     property string subtext
+    property var configNode
+    property string propertyName: ""
     property alias menuItems: splitButton.menuItems
     property alias active: splitButton.active
     property alias fallbackText: splitButton.fallbackText
@@ -37,12 +39,25 @@ ConnectedRect {
             Layout.fillWidth: true
             spacing: 0
 
-            StyledText {
-                id: label
-
+            RowLayout {
                 Layout.fillWidth: true
-                font: Tokens.font.body.small
-                elide: Text.ElideRight
+                spacing: Tokens.spacing.small
+
+                StyledText {
+                    id: label
+
+                    font: Tokens.font.body.small
+                    elide: Text.ElideRight
+                }
+
+                PerMonitorStatusChip {
+                    configNode: root.configNode
+                    propertyName: root.propertyName
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
             }
 
             StyledText {

@@ -10,6 +10,7 @@
 namespace caelestia::shell::config {
 
 class AppearanceFont;
+class AppearanceTokens;
 class FontStyleBase;
 class IconFontStyle;
 
@@ -136,6 +137,8 @@ public:
     explicit FontTokens(QObject* parent = nullptr);
 
     void bindFont(AppearanceFont* font);
+    // Binds the appearance tokens layer for mono font sizes
+    void bindTokens(AppearanceTokens* tokens);
 
     [[nodiscard]] FontStyle* headline() const;
     [[nodiscard]] FontStyle* title() const;
@@ -155,6 +158,7 @@ private:
     void rebuildScale();
 
     AppearanceFont* m_font = nullptr;
+    AppearanceTokens* m_tokens = nullptr;
     FontStyle* m_headline;
     FontStyle* m_title;
     FontStyle* m_body;

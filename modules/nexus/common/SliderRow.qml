@@ -11,12 +11,23 @@ import qs.modules.nexus.common
 ConnectedRect {
     id: root
 
+    property bool showDelete: false
+    signal deleted()
+
+    property bool showReset: false
+    signal reset()
+
+    property var configNode
+    property string propertyName: ""
+
     property alias icon: icon.text
     property alias label: label.text
     property alias valueLabel: valueLabel.text
     property real value
 
     signal moved(value: real)
+    signal interaction(value: real)
+    signal released(value: real)
 
     Layout.fillWidth: true
     implicitHeight: rowLayout.implicitHeight + rowLayout.anchors.margins + rowLayout.anchors.topMargin
@@ -32,6 +43,7 @@ ConnectedRect {
         MaterialIcon {
             id: icon
 
+            visible: text !== ""
             color: Colours.palette.m3onSurfaceVariant
             fontStyle: Tokens.font.icon.medium
         }
@@ -46,15 +58,38 @@ ConnectedRect {
 
                 StyledText {
                     id: label
-
-                    Layout.fillWidth: true
+                    text: root.label
                     font: Tokens.font.body.small
                     elide: Text.ElideRight
                 }
 
+                IconButton {
+                    icon: "delete"
+                    type: IconButton.Text
+                    font: Tokens.font.icon.small
+                    visible: root.showDelete
+                    onClicked: root.deleted()
+                }
+
+                IconButton {
+                    icon: "restart_alt"
+                    type: IconButton.Text
+                    font: Tokens.font.icon.small
+                    visible: root.showReset
+                    onClicked: root.reset()
+                }
+
+                PerMonitorStatusChip {
+                    configNode: root.configNode
+                    propertyName: root.propertyName
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
                 StyledText {
                     id: valueLabel
-
                     color: Colours.palette.m3outline
                     font: Tokens.font.body.small
                 }
@@ -81,7 +116,11 @@ ConnectedRect {
                     radius: Tokens.rounding.small
                     value: root.value
                     enabled: root.enabled
-                    onInteraction: v => root.moved(v)
+                    onInteraction: v => {
+                        root.moved(v);
+                        root.interaction(v);
+                    }
+                    onReleased: v => root.released(v)
                 }
             }
         }

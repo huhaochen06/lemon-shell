@@ -3,6 +3,7 @@
 #include "settings/rootnode.hpp"
 #include "settings/singleton.hpp"
 #include "appearanceconfig.hpp"
+#include "audioconfig.hpp"
 #include "backgroundconfig.hpp"
 #include "barconfig.hpp"
 #include "borderconfig.hpp"
@@ -17,6 +18,7 @@
 #include "osdconfig.hpp"
 #include "serviceconfig.hpp"
 #include "sessionconfig.hpp"
+#include "shimejiconfig.hpp"
 #include "sidebarconfig.hpp"
 #include "tokens.hpp"
 #include "userpaths.hpp"
@@ -45,6 +47,8 @@ class ConfigRoot : public settings::RootNode {
     CONFIG_SUBOBJECT(SidebarConfig, sidebar)
     CONFIG_SUBOBJECT(UtilitiesConfig, utilities)
     CONFIG_SUBOBJECT(UserPaths, paths)
+    CONFIG_SUBOBJECT(ShimejiConfig, shimeji)
+    CONFIG_SUBOBJECT(AudioConfig, audio)
 
 public:
     explicit ConfigRoot(const QString& path, ConfigRoot* fallback = nullptr, QObject* parent = nullptr);
