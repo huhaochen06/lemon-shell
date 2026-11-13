@@ -14,6 +14,7 @@ Scope {
         property bool freeze
         property bool closing
         property bool clipboardOnly
+        property bool searchMode
 
         Variants {
             model: Screens.screens
@@ -52,6 +53,7 @@ Scope {
             root.freeze = false;
             root.closing = false;
             root.clipboardOnly = false;
+            root.searchMode = false;
             root.activeAsync = true;
         }
 
@@ -59,6 +61,7 @@ Scope {
             root.freeze = true;
             root.closing = false;
             root.clipboardOnly = false;
+            root.searchMode = false;
             root.activeAsync = true;
         }
 
@@ -66,6 +69,7 @@ Scope {
             root.freeze = false;
             root.closing = false;
             root.clipboardOnly = true;
+            root.searchMode = false;
             root.activeAsync = true;
         }
 
@@ -73,6 +77,15 @@ Scope {
             root.freeze = true;
             root.closing = false;
             root.clipboardOnly = true;
+            root.searchMode = false;
+            root.activeAsync = true;
+        }
+
+        function openSearch(): void {
+            root.searchMode = true;
+            root.freeze = false;
+            root.closing = false;
+            root.clipboardOnly = false;
             root.activeAsync = true;
         }
 
