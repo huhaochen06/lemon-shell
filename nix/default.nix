@@ -19,6 +19,7 @@
   nerd-fonts,
   qt6,
   quickshell,
+  protobuf,
   aubio,
   libcava,
   fftw,
@@ -95,7 +96,7 @@
     };
 
     nativeBuildInputs = [cmake ninja pkg-config];
-    buildInputs = [qt6.qtbase qt6.qtdeclarative qt6.qtmultimedia qt6.qtshadertools libqalculate pipewire aubio libcava fftw lm_sensors];
+    buildInputs = [qt6.qtbase qt6.qtdeclarative qt6.qtmultimedia qt6.qtshadertools libqalculate pipewire aubio libcava fftw lm_sensors protobuf];
 
     dontWrapQtApps = true;
     cmakeFlags =

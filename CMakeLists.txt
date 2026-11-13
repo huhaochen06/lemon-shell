@@ -1,14 +1,26 @@
 cmake_minimum_required(VERSION 3.19)
 
+set(REMOTE_REPO_URL "https://github.com/caelestia-dots/shell.git")
+
 if(NOT DEFINED VERSION)
-    execute_process(COMMAND git describe --tags --abbrev=0
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        OUTPUT_VARIABLE VERSION
+    # This fork has no release tags of its own, so use the latest Caelestia release as the version
+    execute_process(
+        COMMAND git ls-remote --tags --sort=-v:refname "${REMOTE_REPO_URL}"
+        OUTPUT_VARIABLE REMOTE_TAGS_RAW
+        RESULT_VARIABLE GIT_TAG_RESULT
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 
+    if(NOT GIT_TAG_RESULT EQUAL 0 OR "${REMOTE_TAGS_RAW}" STREQUAL "")
+        message(FATAL_ERROR "Failed to query tags from ${REMOTE_REPO_URL}")
+    endif()
+
+    # Extract the first ref tag name (strips commit hash and peels ^{})
+    string(REGEX MATCH "refs/tags/([^\n\^\t ]+)" _MATCH "${REMOTE_TAGS_RAW}")
+    set(VERSION "${CMAKE_MATCH_1}")
+
     if("${VERSION}" STREQUAL "")
-        message(FATAL_ERROR "VERSION is not set and failed to get from git")
+        message(FATAL_ERROR "VERSION is not set and failed to parse from remote tags")
     endif()
 endif()
 
@@ -27,6 +39,10 @@ endif()
 string(REGEX REPLACE "^v" "" VERSION "${VERSION}")
 
 project(caelestia-shell VERSION ${VERSION} LANGUAGES CXX)
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "/" CACHE PATH "Installation prefix" FORCE)
+endif()
 
 include(GNUInstallDirs)
 
@@ -73,6 +89,8 @@ if("shell" IN_LIST ENABLE_MODULES)
     endforeach()
 
     install(PROGRAMS assets/wrap_term_launch.sh DESTINATION "${INSTALL_QSCONFDIR}/assets")
+    install(PROGRAMS scripts/set-wallpaper-snapshot scripts/island DESTINATION "${INSTALL_QSCONFDIR}/scripts")
+    install(FILES scripts/fish/island.fish DESTINATION "${INSTALL_QSCONFDIR}/scripts/fish")
 
     file(READ shell.qml SHELL_QML)
     string(REPLACE "settings.watchFiles: true" "settings.watchFiles: false" SHELL_QML "${SHELL_QML}")

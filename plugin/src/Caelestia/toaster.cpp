@@ -21,7 +21,7 @@ Toast::Toast(QString title, QString message, QString icon, Type type, int timeou
     if (m_icon.isEmpty()) {
         switch (m_type) {
         case Type::Success:
-            m_icon = u"check_circle_unread"_s;
+            m_icon = u"radio_button_checked_unread"_s;
             break;
         case Type::Warning:
             m_icon = u"warning"_s;

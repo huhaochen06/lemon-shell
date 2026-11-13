@@ -4,3 +4,16 @@
 build/
 .cache/
 logs
+
+# Local credentials and development overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build and patch leftovers
+__pycache__/
+*.pyc
+*.orig
+*.rej
