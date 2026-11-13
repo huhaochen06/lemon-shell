@@ -451,9 +451,14 @@ Singleton {
 
         switch (statusObj.state) {
         case "connected":
+            // The dynamic island shows connects/disconnects itself when enabled
+            if (IslandState.covers("vpn"))
+                break;
             Toaster.toast(Tr.tr("VPN connected"), Tr.tr("Connected to %1").arg(displayName), "vpn_key");
             break;
         case "disconnected":
+            if (IslandState.covers("vpn"))
+                break;
             Toaster.toast(Tr.tr("VPN disconnected"), Tr.tr("Disconnected from %1").arg(displayName), "vpn_key_off");
             break;
         case "needs-auth":

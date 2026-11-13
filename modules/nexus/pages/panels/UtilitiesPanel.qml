@@ -46,10 +46,15 @@ PageBase {
         ToggleRow {
             first: true
             last: true
-            text: Tr.trCtx("Enabled", "toggle label")
-            subtext: Tr.tr("Show the utilities panel")
-            checked: Config.utilities.enabled
-            onToggled: GlobalConfig.utilities.enabled = checked
+            text: qsTr("Enabled")
+            subtext: qsTr("Show the utilities panel")
+            configNode: root.targetConfig.utilities
+            propertyName: "enabled"
+            checked: root.targetConfig.utilities.enabled
+            onToggled: {
+                root.targetConfig.utilities.enabled = checked;
+                root.targetConfig.save();
+            }
         }
 
         // Cards
@@ -59,25 +64,40 @@ PageBase {
 
         ToggleRow {
             first: true
-            text: Tr.tr("Keep awake")
-            subtext: Tr.tr("Show the idle inhibitor card")
-            checked: Config.utilities.cards.keepAwake
-            onToggled: GlobalConfig.utilities.cards.keepAwake = checked
+            text: qsTr("Keep awake")
+            subtext: qsTr("Show the idle inhibitor card")
+            configNode: root.targetConfig.utilities.cards
+            propertyName: "keepAwake"
+            checked: root.targetConfig.utilities.cards.keepAwake
+            onToggled: {
+                root.targetConfig.utilities.cards.keepAwake = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
-            text: Tr.tr("Screen recorder")
-            subtext: Tr.tr("Show the screen recorder card")
-            checked: Config.utilities.cards.recorder
-            onToggled: GlobalConfig.utilities.cards.recorder = checked
+            text: qsTr("Screen recorder")
+            subtext: qsTr("Show the screen recorder card")
+            configNode: root.targetConfig.utilities.cards
+            propertyName: "recorder"
+            checked: root.targetConfig.utilities.cards.recorder
+            onToggled: {
+                root.targetConfig.utilities.cards.recorder = checked;
+                root.targetConfig.save();
+            }
         }
 
         ToggleRow {
             last: true
-            text: Tr.tr("Quick toggles")
-            subtext: Tr.tr("Show the quick toggles card")
-            checked: Config.utilities.cards.quickToggles
-            onToggled: GlobalConfig.utilities.cards.quickToggles = checked
+            text: qsTr("Quick toggles")
+            subtext: qsTr("Show the quick toggles card")
+            configNode: root.targetConfig.utilities.cards
+            propertyName: "quickToggles"
+            checked: root.targetConfig.utilities.cards.quickToggles
+            onToggled: {
+                root.targetConfig.utilities.cards.quickToggles = checked;
+                root.targetConfig.save();
+            }
         }
 
         // Quick toggles
@@ -141,6 +161,47 @@ PageBase {
             disabled: !Config.utilities.cards.quickToggles
             checked: root.isToggleOn("vpn")
             onToggled: root.setToggleOn("vpn", checked)
+        }
+
+        ToggleRow {
+            text: qsTr("Quick Share")
+            subtext: qsTr("Send and receive files with Android phones")
+            disabled: !Config.utilities.cards.quickToggles
+            checked: root.isToggleOn("quickshare")
+            onToggled: root.setToggleOn("quickshare", checked)
+        }
+
+        ToggleRow {
+            text: qsTr("AirDrop")
+            subtext: qsTr("Send and receive files with iPhones")
+            disabled: !Config.utilities.cards.quickToggles
+            checked: root.isToggleOn("airdrop")
+            onToggled: root.setToggleOn("airdrop", checked)
+        }
+
+        ToggleRow {
+            text: qsTr("Wallpaper selector")
+            subtext: qsTr("Show the wallpaper picker menu")
+            disabled: !Config.utilities.cards.quickToggles
+            checked: root.isToggleOn("wallpaper")
+            onToggled: root.setToggleOn("wallpaper", checked)
+        }
+
+        ToggleRow {
+            text: qsTr("Pause video wallpaper")
+            subtext: qsTr("Pause or resume the video wallpaper")
+            disabled: !Config.utilities.cards.quickToggles
+            checked: root.isToggleOn("pauseWallpaper")
+            onToggled: root.setToggleOn("pauseWallpaper", checked)
+        }
+
+        ToggleRow {
+            last: true
+            text: qsTr("Pause PiP")
+            subtext: qsTr("Pause or resume picture-in-picture")
+            disabled: !Config.utilities.cards.quickToggles
+            checked: root.isToggleOn("pipPause")
+            onToggled: root.setToggleOn("pipPause", checked)
         }
     }
 }

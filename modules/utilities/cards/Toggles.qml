@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Bluetooth
 import Caelestia.Components
 import Caelestia.Config
@@ -10,6 +11,7 @@ import Caelestia.State
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.utils
 import qs.modules.nexus
 import qs.modules.bar.popouts as BarPopouts
 
@@ -21,20 +23,22 @@ StyledRect {
 
     readonly property var quickToggles: {
         const seenIds = new Set();
-
         return Config.utilities.quickToggles.values.filter(item => {
             if (!item.enabled || seenIds.has(item.id))
                 return false;
+            if (seenIds.has(item.id))
+                return false;
+            seenIds.add(item.id);
 
             // TODO: hide wallpaper playing toggle if wallpaper is live
 
             if (item.id === "vpn")
                 return GlobalConfig.utilities.vpn.selectedProvider.length > 0;
 
-            seenIds.add(item.id);
             return true;
         });
     }
+
     readonly property int splitIndex: Math.ceil(quickToggles.length / 2)
     readonly property bool needExtraRow: quickToggles.length > 6
 
@@ -154,6 +158,71 @@ StyledRect {
                         isToggle: VPN.status.state !== "needs-auth" && VPN.status.state !== "error"
                         inactiveOnColour: Colours.palette.m3onSurfaceVariant
                         onClicked: VPN.toggle()
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "quickshare"
+                    delegate: Toggle {
+                        icon: "near_me"
+                        checked: QuickShare.isEnabled
+                        onClicked: {
+                            const newState = !QuickShare.isEnabled;
+                            QuickShare.setEnabled(newState);
+                            QuickShare.setVisible(newState);
+                        }
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "airdrop"
+                    delegate: Toggle {
+                        icon: "phone_iphone"
+                        checked: AirDrop.isEnabled
+                        onClicked: {
+                            const newState = !AirDrop.isEnabled;
+                            AirDrop.setEnabled(newState);
+                            AirDrop.setVisible(newState);
+                        }
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "wallpaper"
+                    delegate: Toggle {
+                        icon: "wallpaper"
+                        isToggle: false
+                        inactiveOnColour: Colours.palette.m3onSurfaceVariant
+                        onClicked: {
+                            Visibilities.launcherInitialSearch = `${GlobalConfig.launcher.actionPrefix}wallpaper `;
+                            const visibilities = Visibilities.getForActive();
+                            visibilities.launcher = true;
+                        }
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "pauseWallpaper"
+                    delegate: Toggle {
+                        id: pauseWallpaperToggle
+
+                        icon: "pause"
+                        isToggle: true
+
+                        checked: WallpaperPauser.manualPause || (Config.background && Config.background.videoWallpaperPaused)
+                        onClicked: {
+                            const newVal = !checked;
+                            GlobalConfig.background.videoWallpaperPaused = newVal;
+                            WallpaperPauser.manualPause = newVal;
+                        }
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "pipPause"
+                    delegate: Toggle {
+                        icon: "picture_in_picture_alt"
+                        isToggle: true
+
+                        Component.onCompleted: checked = Qt.binding(() => GlobalConfig.services.pipPaused)
+                        onClicked: {
+                            GlobalConfig.services.pipPaused = !GlobalConfig.services.pipPaused;
+                        }
                     }
                 }
             }

@@ -164,8 +164,33 @@ PageBase {
 
         ToggleRow {
             verticalPadding: Tokens.padding.large
-            text: Tr.trCtx("Blocked", "bluetooth device state")
-            subtext: Tr.tr("Prevent this device from connecting")
+            text: qsTr("Reconnect on startup")
+            subtext: qsTr("Attempt to connect this device when the shell starts")
+            checked: root.device && GlobalConfig.services.bluetoothAutoReconnectDevices.includes(root.device.address)
+            onToggled: {
+                if (!root.device || !root.device.address)
+                    return;
+                let list = [...GlobalConfig.services.bluetoothAutoReconnectDevices];
+                if (checked) {
+                    if (!list.includes(root.device.address)) {
+                        list.push(root.device.address);
+                        GlobalConfig.services.bluetoothAutoReconnectDevices = list;
+                    }
+                } else {
+                    let idx = list.indexOf(root.device.address);
+                    if (idx !== -1) {
+                        list.splice(idx, 1);
+                        GlobalConfig.services.bluetoothAutoReconnectDevices = list;
+                    }
+                }
+            }
+        }
+
+        ToggleRow {
+            Layout.fillWidth: true
+            verticalPadding: Tokens.padding.large
+            text: qsTr("Blocked")
+            subtext: qsTr("Prevent this device from connecting")
             checked: root.device?.blocked ?? false
             onToggled: {
                 if (root.device)

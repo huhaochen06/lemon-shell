@@ -81,7 +81,7 @@ PageBase {
             onClicked: root.nState.openSubPage(1)
         }
 
-        // Polling
+        // Connections
         SectionHeader {
             text: Tr.tr("Polling")
         }
@@ -187,26 +187,31 @@ PageBase {
             text: Tr.tr("Service tuning")
         }
 
-        StepperRow {
+        NavRow {
             first: true
-            // TRANSLATORS: bars of a spectrum analyser, not the taskbar
-            label: Tr.tr("Visualiser bars")
-            subtext: Tr.tr("Number of bars in the audio visualisers")
-            value: GlobalConfig.services.visualiserBars
-            from: 10
-            to: 120
-            stepSize: 2
-            onMoved: v => GlobalConfig.services.visualiserBars = v
+            icon: "sports_esports"
+            text: qsTr("Game mode")
+            subtext: qsTr("Manage how the shell behaves while gaming")
+            onClicked: root.nState.openSubPage(2)
         }
 
-        ToggleRow {
-            text: Tr.tr("Smart colour scheme")
-            subtext: Tr.tr("Derive theme mode and variant from the wallpaper")
-            checked: GlobalConfig.services.smartScheme
-            onToggled: GlobalConfig.services.smartScheme = checked
+        NavRow {
+            icon: "picture_in_picture"
+            text: qsTr("Picture in Picture")
+            subtext: qsTr("Configure PiP positioning and focus behavior")
+            onClicked: root.nState.openSubPage(4)
         }
+
+        NavRow {
+            icon: "near_me"
+            text: qsTr("Quick Share & AirDrop")
+            subtext: qsTr("Auto-start and discoverability settings")
+            onClicked: root.nState.openSubPage(5)
+        }
+
 
         SelectRow {
+            Layout.fillWidth: true
             last: true
             label: Tr.tr("GPU")
             subtext: Gpu.name ? Tr.tr("Monitoring: %1").arg(Gpu.name) : Tr.tr("Override for GPU type")

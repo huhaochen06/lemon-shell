@@ -1,6 +1,7 @@
 #pragma once
 
 #include <qstring.h>
+#include <qstringlist.h>
 #include <qvariantlist.h>
 
 #include "settings/objectnode.hpp"
@@ -43,6 +44,14 @@ class ServiceConfig : public settings::ObjectNode {
             vmap({ { u"from"_s, u"com.github.th_ch.youtube_music"_s }, { u"to"_s, u"YT Music"_s } }),
         }))
     CONFIG_GLOBAL_ENUM_PROPERTY(LyricsBackend, lyricsBackend, LyricsBackend::Auto)
+    // Bluetooth auto-reconnect
+    CONFIG_GLOBAL_PROPERTY(QStringList, bluetoothAutoReconnectDevices, {})
+    // Picture-in-picture
+    CONFIG_GLOBAL_PROPERTY(QString, pipPosition, u"bottom right"_s)
+    CONFIG_GLOBAL_PROPERTY(bool, pipFollowFocus, false)
+    CONFIG_GLOBAL_PROPERTY(bool, pipPaused, false)
+    // Quick share
+    CONFIG_GLOBAL_PROPERTY(bool, quickShareAutoStart, false)
 };
 
 } // namespace caelestia::shell::config
