@@ -22,6 +22,10 @@ Singleton {
 
     property bool loaded
 
+    // Apps that play their own sound for their notifications, so the shell doesn't add a second one.
+    // Lowercase app names; more can be added in Nexus > Audio (disabledNotifApps).
+    readonly property list<string> selfSoundingApps: ["discord", "discord canary", "discord ptb", "vesktop", "equibop", "webcord", "legcord", "armcord", "slack"]
+
     function hasFullscreen(): bool {
         for (const monitor of Hypr.monitors.values) {
             if (monitor?.activeWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1))
@@ -38,6 +42,43 @@ Singleton {
         return true;
     }
 
+    function shouldPlaySound(notif: Notification): bool {
+        if (PersistentState.doNotDisturb || notif.appName === "caelestia-cli")
+            return false;
+        const app = (notif.appName ?? "").toLowerCase();
+        if (selfSoundingApps.includes(app) || GlobalConfig.audio.sounds.disabledNotifApps.some(a => a.toLowerCase() === app))
+            return false;
+        // The spec's way of asking for no sound (sent by apps that play their own)
+        return !notif.hints?.["suppress-sound"];
+    }
+
+    function clear(): void {
+        const toClose = [];
+        for (let i = 0; i < root.list.length; i++)
+            toClose.push(root.list[i]);
+        for (let i = 0; i < toClose.length; i++)
+            toClose[i].close();
+    }
+
+    function addCustomNotification(summary: string, body: string, appIcon: string, actions: list<var>, expanded: bool): NotifData {
+        return addCustomNotificationAs("Quick Share", summary, body, appIcon, actions, expanded);
+    }
+
+    function addCustomNotificationAs(appName: string, summary: string, body: string, appIcon: string, actions: list<var>, expanded: bool): NotifData {
+        const notif = notifComp.createObject(root, {
+            popup: root.shouldShowPopup(),
+            resident: true,
+            summary: summary,
+            body: body,
+            appIcon: appIcon,
+            appName: appName,
+            actions: actions,
+            forceExpand: expanded ? true : false
+        });
+        root.list = [notif, ...root.list];
+        return notif;
+    }
+
     onListChanged: {
         if (loaded)
             saveTimer.restart();
@@ -45,7 +86,8 @@ Singleton {
 
     Connections {
         function onDoNotDisturbChanged(): void {
-            if (!GlobalConfig.utilities.toasts.dndChanged)
+            // The dynamic island shows this itself when enabled
+            if (!GlobalConfig.utilities.toasts.dndChanged || IslandState.covers("doNotDisturb"))
                 return;
 
             if (PersistentState.doNotDisturb)
@@ -96,6 +138,9 @@ Singleton {
                 notification: notif
             });
             root.list = [comp, ...root.list];
+
+            if (root.shouldPlaySound(notif))
+                Audio.playNotification();
         }
     }
 
@@ -132,10 +177,7 @@ Singleton {
         // qmllint enable unresolved-type
         name: "clearNotifs"
         description: "Clear all notifications"
-        onPressed: {
-            for (const notif of root.list.slice())
-                notif.close();
-        }
+        onPressed: root.clear()
     }
 
     // qmllint disable unresolved-type
@@ -150,8 +192,7 @@ Singleton {
 
     IpcHandler {
         function clear(): void {
-            for (const notif of root.list.slice())
-                notif.close();
+            root.clear();
         }
 
         function isDndEnabled(): bool {

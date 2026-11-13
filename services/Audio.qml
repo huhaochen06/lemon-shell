@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import QtMultimedia
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
@@ -106,6 +107,50 @@ Singleton {
         return stream.properties["application.name"] || stream.description || stream.name || Tr.trCtx("Unknown application", "unknown application audio stream");
     }
 
+    function playSound(sfx: SoundEffect, setting: bool): void {
+        if (!GlobalConfig.audio.sounds.enabled || !setting)
+            return;
+        sfx.play();
+    }
+
+    function playNotification(): void {
+        if (GlobalConfig.audio.sounds.enabled) {
+            notificationSound.play();
+        }
+    }
+
+    function playCameraClick(): void {
+        playSound(sfxCameraClick, GlobalConfig.audio.sounds.cameraClick);
+    }
+
+    function playChargingStarted(): void {
+        playSound(sfxChargingStarted, GlobalConfig.audio.sounds.chargingStarted);
+    }
+
+    function playEffectTick(): void {
+        playSound(sfxEffectTick, GlobalConfig.audio.sounds.effectTick);
+    }
+
+    function playLock(): void {
+        playSound(sfxLock, GlobalConfig.audio.sounds.lock);
+    }
+
+    function playUnlock(): void {
+        playSound(sfxUnlock, GlobalConfig.audio.sounds.unlock);
+    }
+
+    function playLowBattery(): void {
+        playSound(sfxLowBattery, GlobalConfig.audio.sounds.lowBattery);
+    }
+
+    function playVideoRecord(): void {
+        playSound(sfxVideoRecord, GlobalConfig.audio.sounds.screenRecord);
+    }
+
+    function playVideoStop(): void {
+        playSound(sfxVideoStop, GlobalConfig.audio.sounds.screenRecord);
+    }
+
     function refreshNodes(): void {
         const newSinks = [];
         const newSources = [];
@@ -189,5 +234,68 @@ Singleton {
         }
 
         target: "audio"
+    }
+
+    SoundEffect {
+        id: sfxCameraClick
+
+        source: Qt.resolvedUrl("../assets/sounds/camera_click.wav")
+        volume: GlobalConfig.audio.sounds.sfxVolume
+    }
+
+    SoundEffect {
+        id: sfxChargingStarted
+
+        source: Qt.resolvedUrl("../assets/sounds/ChargingStarted.wav")
+        volume: GlobalConfig.audio.sounds.sfxVolume
+    }
+
+    SoundEffect {
+        id: sfxEffectTick
+
+        source: Qt.resolvedUrl("../assets/sounds/Effect_Tick.wav")
+        volume: GlobalConfig.audio.sounds.sfxVolume
+    }
+
+    SoundEffect {
+        id: sfxLock
+
+        source: Qt.resolvedUrl("../assets/sounds/Lock.wav")
+        volume: GlobalConfig.audio.sounds.sfxVolume
+    }
+
+    SoundEffect {
+        id: sfxUnlock
+
+        source: Qt.resolvedUrl("../assets/sounds/Unlock.wav")
+        volume: GlobalConfig.audio.sounds.sfxVolume
+    }
+
+    SoundEffect {
+        id: sfxLowBattery
+
+        source: Qt.resolvedUrl("../assets/sounds/LowBattery.wav")
+        volume: GlobalConfig.audio.sounds.sfxVolume
+    }
+
+    SoundEffect {
+        id: sfxVideoRecord
+
+        source: Qt.resolvedUrl("../assets/sounds/VideoRecord.wav")
+        volume: GlobalConfig.audio.sounds.sfxVolume
+    }
+
+    SoundEffect {
+        id: sfxVideoStop
+
+        source: Qt.resolvedUrl("../assets/sounds/VideoStop.wav")
+        volume: GlobalConfig.audio.sounds.sfxVolume
+    }
+
+    SoundEffect {
+        id: notificationSound
+
+        source: Qt.resolvedUrl("../assets/sounds/notifications/" + GlobalConfig.audio.sounds.notificationSound)
+        volume: GlobalConfig.audio.sounds.notificationVolume
     }
 }

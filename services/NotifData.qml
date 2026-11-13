@@ -51,6 +51,7 @@ QtObject {
     property int urgency: NotificationUrgency.Normal
     property bool resident
     property bool hasActionIcons
+    property bool forceExpand
     property list<var> actions
 
     readonly property bool hasFullscreen: {
@@ -137,7 +138,7 @@ QtObject {
         }
 
         function onAppIconChanged(): void {
-            notif.appIcon = notif.notification.appIcon;
+            notif.appIcon = notif.notification.appIcon.replace("file://", "");
         }
 
         function onAppNameChanged(): void {
@@ -231,7 +232,7 @@ QtObject {
         notificationId = notification.id;
         summary = notification.summary;
         body = notification.body;
-        appIcon = notification.appIcon;
+        appIcon = notification.appIcon.replace("file://", "");
         appName = notification.appName;
         image = notification.image;
         maybeTriggerDummyImageLoader();

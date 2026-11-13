@@ -51,21 +51,27 @@ Singleton {
         onExited: code => {
             const running = code === 0;
 
+            // All CLI invocations are detached: an attached child inherits the
+            // shell's stdin pipe (which made slurp hang invisibly forever) and
+            // `caelestia record` blocks on its toasts / region selection, which
+            // would serialize every later command behind it.
             if (running && root.needsStop) {
-                commandProc.exec(["caelestia", "record"]);
+                Quickshell.execDetached(["caelestia", "record"]);
                 props.running = false;
                 props.paused = false;
+                Audio.playVideoStop();
             } else if (running && root.needsPause) {
-                commandProc.exec(["caelestia", "record", "-p"]);
+                Quickshell.execDetached(["caelestia", "record", "-p"]);
                 props.paused = !props.paused;
             } else if (!running && root.needsStart) {
-                commandProc.exec(["caelestia", "record", ...root.startArgs]);
+                Quickshell.execDetached(["caelestia", "record", ...root.startArgs]);
                 props.running = true;
                 props.paused = false;
                 props.elapsed = 0;
-            } else if (running !== props.running && !commandProc.running) {
+                Audio.playVideoRecord();
+            } else if (running !== props.running) {
                 // The recording was started/stopped outside the shell (e.g. via
-                // keybind), or our command finished without reaching the optimistic state
+                // keybind), or a region selection is pending/was cancelled
                 props.running = running;
                 props.paused = false;
                 props.elapsed = 0;
@@ -75,15 +81,6 @@ Singleton {
             root.needsStop = false;
             root.needsPause = false;
         }
-    }
-
-    Process {
-        id: commandProc
-
-        // The command owns the transition: `caelestia record` blocks on slurp for
-        // region captures, and waits for the recorder to finalise the file when
-        // stopping. Reconcile once it has actually finished.
-        onExited: checkProc.running = true
     }
 
     // Only poll while something is showing the state, i.e. the utilities drawer is open
@@ -97,11 +94,11 @@ Singleton {
     }
 
     Connections {
+        enabled: props.running && !props.paused
         function onSecondsChanged(): void {
             props.elapsed++;
         }
 
-        enabled: props.running && !props.paused
-        target: Time
+        target: Time // qmllint disable incompatible-type
     }
 }
